@@ -1,6 +1,6 @@
 //
 //  UIList.swift
-//  
+//
 //
 //  Created by Alisa Mylnikova on 24.02.2023.
 //
@@ -107,12 +107,15 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
             return
         }
 
+        // Initial load - just set data without animation
         if coordinator.sections.isEmpty {
             coordinator.sections = sections
-            tableView.reloadData()
+            UIView.performWithoutAnimation {
+                tableView.reloadData()
+            }
             if !isScrollEnabled {
                 DispatchQueue.main.async {
-                    tableContentHeight = tableView.contentSize.height
+                    self.tableContentHeight = tableView.contentSize.height
                 }
             }
             return
@@ -123,8 +126,6 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
         }
 
         let prevSections = coordinator.sections
-        //print("0 whole sections:", runID, "\n")
-        //print("whole previous:\n", formatSections(prevSections), "\n")
         let splitInfo = await performSplitInBackground(prevSections, sections)
         await applyUpdatesToTable(tableView, splitInfo: splitInfo) {
             coordinator.sections = $0
@@ -240,7 +241,7 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
     }
 
     func applyOperation(_ operation: Operation, tableView: UITableView) {
-        let animation: UITableView.RowAnimation = .top
+        let animation: UITableView.RowAnimation = .none
         switch operation {
         case .deleteSection(let section):
             tableView.deleteSections([section], with: animation)
@@ -505,7 +506,7 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
             header?.backgroundColor = UIColor(mainBackgroundColor)
             return header
         }
-        
+
         func tableView(_ tableView: UITableView, leadingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
             guard let items = type == .conversation ? listSwipeActions.trailing : listSwipeActions.leading else { return nil }
             guard !items.actions.isEmpty else { return nil }
@@ -514,7 +515,7 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
             conf.performsFirstActionWithFullSwipe = items.performsFirstActionWithFullSwipe
             return conf
         }
-        
+
         func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
             guard let items = type == .conversation ? listSwipeActions.leading : listSwipeActions.trailing else { return nil }
             guard !items.actions.isEmpty else { return nil }
@@ -523,20 +524,20 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
             conf.performsFirstActionWithFullSwipe = items.performsFirstActionWithFullSwipe
             return conf
         }
-        
+
         private func toContextualAction(_ item: SwipeActionable, message:Message) -> UIContextualAction {
             let ca = UIContextualAction(style: .normal, title: nil) { (action, sourceView, completionHandler) in
                 item.action(message, self.viewModel.messageMenuAction())
                 completionHandler(true)
             }
             ca.image = item.render(type: type)
-            
+
             let bgColor = item.background ?? mainBackgroundColor
             ca.backgroundColor = UIColor(bgColor)
-            
+
             return ca
         }
-        
+
         @ViewBuilder
         func sectionHeaderViewBuilder(_ section: Int) -> some View {
             if let mainHeaderBuilder, section == 0 {

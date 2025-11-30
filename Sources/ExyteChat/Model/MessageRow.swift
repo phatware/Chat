@@ -76,10 +76,9 @@ struct MessageRow: Equatable {
     let commentsPosition: CommentsPosition?
 
     static func == (lhs: Self, rhs: Self) -> Bool {
+        // Only compare by id and message content, ignore position changes
+        // to prevent unnecessary row reloads when new messages are added
         lhs.id == rhs.id
-        && lhs.positionInUserGroup == rhs.positionInUserGroup
-        && lhs.positionInMessagesSection == rhs.positionInMessagesSection
-        && lhs.commentsPosition == rhs.commentsPosition
         && lhs.message == rhs.message
     }
 }
