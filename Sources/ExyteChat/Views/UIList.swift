@@ -118,6 +118,11 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
                     self.tableContentHeight = tableView.contentSize.height
                 }
             }
+            // On initial load, we're at the bottom (conversation is flipped)
+            // Set isScrolledToBottom to true to prevent scroll button from showing
+            DispatchQueue.main.async {
+                self.isScrolledToBottom = true
+            }
             return
         }
 
@@ -192,9 +197,11 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
         UIView.setAnimationsEnabled(true)
         //print("3 finished edits", runID)
 
-        if isScrolledToBottom || isScrolledToTop {
-            // step 4: inserts
-            // apply the rest of the changes to table's dataSource, i.e. inserts
+        // step 4: inserts
+        // Always apply insert operations so new messages appear immediately
+        // (Previously this was gated by isScrolledToBottom || isScrolledToTop which caused
+        // outgoing messages to not appear until the user scrolled)
+        if !splitInfo.insertOperations.isEmpty {
             //print("4 apply inserts", runID)
             updateContextClosure(sections)
 
@@ -207,6 +214,16 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
 
             if !isScrollEnabled {
                 tableContentHeight = tableView.contentSize.height
+            }
+
+            // After insert, check if we're actually at the bottom and update state
+            // This fixes the scroll button appearing incorrectly on first message
+            // or when new messages are added while already at bottom
+            DispatchQueue.main.async {
+                let isAtBottom = tableView.contentOffset.y <= 0
+                if isAtBottom {
+                    self.isScrolledToBottom = true
+                }
             }
         }
     }
