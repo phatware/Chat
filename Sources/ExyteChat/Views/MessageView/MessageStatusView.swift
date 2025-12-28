@@ -26,6 +26,8 @@ struct MessageStatusView: View {
                 Button(action: onRetry) {
                     statusImageStyled(image: theme.images.message.error, color: getTheme().colors.statusError)
                 }
+            case .deletedByPeer:
+                statusImageStyled(image: Image(systemName: "xmark"), color: getTheme().colors.statusGray)
             }
         }
         .viewSize(MessageView.statusViewSize)

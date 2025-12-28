@@ -63,6 +63,9 @@ final class ChatViewModel: ObservableObject {
             inputViewModel?.text = message.text
             inputViewModel?.edit(saveClosure)
             globalFocusState?.focus = .uuid(inputFieldId)
+        case .delete:
+            // Delete action is handled by the app via onMessageMenuAction closure
+            break
         }
     }
 }

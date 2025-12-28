@@ -15,6 +15,7 @@ public struct Message: Identifiable, Hashable, Sendable {
         case delivered
         case read
         case error(DraftMessage)
+        case deletedByPeer
 
         public func hash(into hasher: inout Hasher) {
             switch self {
@@ -28,6 +29,8 @@ public struct Message: Identifiable, Hashable, Sendable {
                 return hasher.combine("read")
             case .error:
                 return hasher.combine("error")
+            case .deletedByPeer:
+                return hasher.combine("deletedByPeer")
             }
         }
 
@@ -42,6 +45,8 @@ public struct Message: Identifiable, Hashable, Sendable {
             case (.read, .read):
                 return true
             case ( .error(_), .error(_)):
+                return true
+            case (.deletedByPeer, .deletedByPeer):
                 return true
             default:
                 return false
