@@ -73,7 +73,11 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
 
     static public func menuItems(for message: Message) -> [DefaultMessageMenuAction] {
         if message.user.isCurrentUser {
-            return allCases
+            if message.attachments.isEmpty {
+                return allCases
+            } else {
+                return [.copy, .reply, .delete]
+            }
         } else {
             return [.copy, .reply, .delete]
         }
