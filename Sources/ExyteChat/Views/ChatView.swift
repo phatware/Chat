@@ -6,8 +6,10 @@
 //
 
 import SwiftUI
-import GiphyUISDK
 import ExyteMediaPicker
+#if GIPHY_UISDK
+import GiphyUISDK
+#endif
 
 public typealias MediaPickerLiveCameraStyle = LiveCameraCellStyle
 public typealias MediaPickerSelectionParameters = SelectionParamsHolder
@@ -74,7 +76,9 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.chatTheme) private var theme
+#if GIPHY_UISDK
     @Environment(\.giphyConfig) private var giphyConfig
+#endif
 
     // MARK: - Parameters
 
@@ -150,7 +154,9 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     @State private var cellFrames = [String: CGRect]()
 
     @State private var giphyConfigured = false
+#if GIPHY_UISDK
     @State private var selectedMedia: GPHMedia? = nil
+#endif
 
     public init(messages: [Message],
                 chatType: ChatType = .conversation,
@@ -198,35 +204,37 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                     .ignoresSafeArea()
                 }
             }
-            .onAppear() {
-                if isGiphyAvailable() {
-                    if let giphyKey = giphyConfig.giphyKey {
-                        if !giphyConfigured {
-                            giphyConfigured = true
-                            Giphy.configure(apiKey: giphyKey)
-                        }
-                    } else {
-                        print("WARNING: giphy key not provided, please pass a key using giphyConfig")
-                    }
-                }
-            }
-            .onChange(of: selectedMedia) {
-                if let giphyMedia = selectedMedia {
-                    inputViewModel.attachments.giphyMedia = giphyMedia
-                    inputViewModel.send()
-                }
-            }
-            .sheet(isPresented: $inputViewModel.showGiphyPicker) {
-                if giphyConfig.giphyKey != nil {
-                    GiphyEditorView(
-                        giphyConfig: giphyConfig,
-                        selectedMedia: $selectedMedia
-                    )
-                    .environmentObject(globalFocusState)
-                } else {
-                    Text("no giphy key found")
-                }
-            }
+#if GIPHY_UISDK
+           .onAppear() {
+               if isGiphyAvailable() {
+                   if let giphyKey = giphyConfig.giphyKey {
+                       if !giphyConfigured {
+                           giphyConfigured = true
+                           Giphy.configure(apiKey: giphyKey)
+                       }
+                   } else {
+                       print("WARNING: giphy key not provided, please pass a key using giphyConfig")
+                   }
+               }
+           }
+           .onChange(of: selectedMedia) {
+               if let giphyMedia = selectedMedia {
+                   inputViewModel.attachments.giphyMedia = giphyMedia
+                   inputViewModel.send()
+               }
+           }
+           .sheet(isPresented: $inputViewModel.showGiphyPicker) {
+               if giphyConfig.giphyKey != nil {
+                   GiphyEditorView(
+                       giphyConfig: giphyConfig,
+                       selectedMedia: $selectedMedia
+                   )
+                   .environmentObject(globalFocusState)
+               } else {
+                   Text("no giphy key found")
+               }
+           }
+#endif
             .fullScreenCover(isPresented: $inputViewModel.showPicker) {
                 AttachmentsEditor(
                     inputViewModel: inputViewModel,

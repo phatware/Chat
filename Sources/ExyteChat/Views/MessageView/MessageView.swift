@@ -157,10 +157,11 @@ struct MessageView: View {
 
             VStack(alignment: .leading, spacing: 0) {
 
-                if let giphyMediaId = message.giphyMediaId {
-                    giphyView(giphyMediaId)
-                }
-
+#if GIPHY_UISDK
+               if let giphyMediaId = message.giphyMediaId {
+                   giphyView(giphyMediaId)
+               }
+#endif
                 if !message.attachments.isEmpty {
                     attachmentsView(message)
                 }
@@ -277,11 +278,13 @@ struct MessageView: View {
         .contentShape(Rectangle())
     }
 
-    @ViewBuilder
-    func giphyView(_ giphyMediaId: String) -> some View {
-        GiphyMediaView(id: giphyMediaId, aspectRatio: $giphyAspectRatio)
-            .frame(width: 200 * giphyAspectRatio, height: 200)
-    }
+#if GIPHY_UISDK
+   @ViewBuilder
+   func giphyView(_ giphyMediaId: String) -> some View {
+       GiphyMediaView(id: giphyMediaId, aspectRatio: $giphyAspectRatio)
+           .frame(width: 200 * giphyAspectRatio, height: 200)
+   }
+#endif
 
     @ViewBuilder
     func textWithTimeView(_ message: Message) -> some View {
@@ -448,11 +451,11 @@ extension View {
             status: .read,
             text: extraShortTextWithNewline
         )
-        
+
         static var previews: some View {
             ZStack {
                 Color.yellow.ignoresSafeArea()
-                
+
                 VStack {
                     MessageView(
                         viewModel: ChatViewModel(),
@@ -469,7 +472,7 @@ extension View {
                         messageLinkPreviewLimit: 8,
                         font: UIFontMetrics.default.scaledFont(for: UIFont.systemFont(ofSize: 15))
                     )
-                    
+
                     MessageView(
                         viewModel: ChatViewModel(),
                         message: replyedMessage,
@@ -486,7 +489,7 @@ extension View {
                         font: UIFontMetrics.default.scaledFont(for: UIFont.systemFont(ofSize: 15))
                     )
                 }
-                
+
             }
         }
     }

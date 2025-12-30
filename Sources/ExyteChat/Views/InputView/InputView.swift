@@ -7,7 +7,9 @@
 
 import SwiftUI
 import ExyteMediaPicker
+#if GIPHY_UISDK
 import GiphyUISDK
+#endif
 
 public enum InputViewStyle: Sendable {
     case message
@@ -66,7 +68,9 @@ public enum AvailableInputType: Sendable {
 public struct InputViewAttachments {
     var medias: [Media] = []
     var recording: Recording?
+#if GIPHY_UISDK
     var giphyMedia: GPHMedia?
+#endif
     var replyMessage: ReplyMessage?
 }
 

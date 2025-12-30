@@ -100,7 +100,7 @@ public struct Message: Identifiable, Hashable, Sendable {
                 guard let thumbnailURL = await media.getThumbnailURL() else {
                     return nil
                 }
-                
+
                 switch media.type {
                 case .image:
                     return Attachment(id: UUID().uuidString, url: thumbnailURL, type: .image)
@@ -111,9 +111,8 @@ public struct Message: Identifiable, Hashable, Sendable {
                     return Attachment(id: UUID().uuidString, thumbnail: thumbnailURL, full: fullURL, type: .video)
                 }
             }
-            
+#if GIPHY_UISDK
             let giphyMediaId = draft.giphyMedia?.id
-            
             return Message(
                 id: id,
                 user: user,
@@ -125,6 +124,18 @@ public struct Message: Identifiable, Hashable, Sendable {
                 recording: draft.recording,
                 replyMessage: draft.replyMessage
             )
+#else
+            return Message(
+                id: id,
+                user: user,
+                status: status,
+                createdAt: draft.createdAt,
+                text: draft.text,
+                attachments: attachments,
+                recording: draft.recording,
+                replyMessage: draft.replyMessage
+            )
+#endif
         }
 }
 

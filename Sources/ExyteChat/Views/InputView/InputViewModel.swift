@@ -15,7 +15,7 @@ final class InputViewModel: ObservableObject {
 
     @Published var showGiphyPicker = false
     @Published var showPicker = false
-  
+
     @Published var mediaPickerMode = MediaPickerMode.photos
 
     @Published var showActivityIndicator = false
@@ -29,7 +29,7 @@ final class InputViewModel: ObservableObject {
 
     private var recordPlayerSubscription: AnyCancellable?
     private var subscriptions = Set<AnyCancellable>()
-    
+
     func setRecorderSettings(recorderSettings: RecorderSettings = RecorderSettings()) {
         Task {
             await self.recorder.setRecorderSettings(recorderSettings)
@@ -39,7 +39,9 @@ final class InputViewModel: ObservableObject {
     func onStart() {
         subscribeValidation()
         subscribePicker()
+#if GIPHY_UISDK
         subscribeGiphyPicker()
+#endif
     }
 
     func onStop() {
@@ -76,7 +78,7 @@ final class InputViewModel: ObservableObject {
             self?.inputViewActionInternal($0)
         }
     }
-    
+
     private func inputViewActionInternal(_ action: InputViewAction) {
         switch action {
         case .giphy:
@@ -186,16 +188,18 @@ private extension InputViewModel {
         .store(in: &subscriptions)
     }
 
-    func subscribeGiphyPicker() {
-        $showGiphyPicker
-            .sink { [weak self] value in
-                if !value {
-                  self?.attachments.giphyMedia = nil
-                }
-            }
-            .store(in: &subscriptions)
-    }
-  
+#if GIPHY_UISDK
+   func subscribeGiphyPicker() {
+       $showGiphyPicker
+           .sink { [weak self] value in
+               if !value {
+                 self?.attachments.giphyMedia = nil
+               }
+           }
+           .store(in: &subscriptions)
+   }
+#endif
+
     func subscribePicker() {
         $showPicker
             .sink { [weak self] value in
@@ -226,6 +230,7 @@ private extension InputViewModel {
 
     func sendMessage() {
         showActivityIndicator = true
+#if GIPHY_UISDK
         let draft = DraftMessage(
             text: self.text,
             medias: attachments.medias,
@@ -234,6 +239,15 @@ private extension InputViewModel {
             replyMessage: attachments.replyMessage,
             createdAt: Date()
         )
+#else
+        let draft = DraftMessage(
+            text: self.text,
+            medias: attachments.medias,
+            recording: attachments.recording,
+            replyMessage: attachments.replyMessage,
+            createdAt: Date()
+        )
+#endif
         didSendMessage?(draft)
         DispatchQueue.main.async { [weak self] in
             self?.showActivityIndicator = false

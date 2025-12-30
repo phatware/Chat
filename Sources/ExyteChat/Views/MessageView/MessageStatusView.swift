@@ -51,7 +51,7 @@ struct MessageStatusView: View {
 }
 
 struct SwiftUIView_Previews: PreviewProvider {
-    
+
     static var previews: some View {
         VStack {
             MessageStatusView(status: .sending, onRetry: {})
@@ -63,6 +63,7 @@ struct SwiftUIView_Previews: PreviewProvider {
     }
 
     private static func emptyDraft() -> DraftMessage {
+#if GIPHY_UISDK
         return DraftMessage(
             id: nil,
             text: "",
@@ -72,6 +73,15 @@ struct SwiftUIView_Previews: PreviewProvider {
             replyMessage: nil,
             createdAt: Date()
         )
-
+#else
+        return DraftMessage(
+            id: nil,
+            text: "",
+            medias: [],
+            recording: nil,
+            replyMessage: nil,
+            createdAt: Date()
+        )
+#endif
     }
 }
