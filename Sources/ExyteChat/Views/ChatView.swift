@@ -204,6 +204,25 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                     .ignoresSafeArea()
                 }
             }
+            .sheet(isPresented: $viewModel.fileSharePresented) {
+                if let fileURL = viewModel.fileToShare {
+                    ShareSheet(items: [fileURL], onDismiss: {
+                        viewModel.dismissFileShare()
+                    })
+                }
+            }
+            .alert("Attachment Too Large", isPresented: Binding(
+                get: { inputViewModel.errorMessage != nil },
+                set: { if !$0 { inputViewModel.errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {
+                    inputViewModel.errorMessage = nil
+                }
+            } message: {
+                if let errorMessage = inputViewModel.errorMessage {
+                    Text(errorMessage)
+                }
+            }
 #if GIPHY_UISDK
            .onAppear() {
                if isGiphyAvailable() {
@@ -259,6 +278,25 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             .onChange(of: inputViewModel.showGiphyPicker) { _ , newValue in
                 if newValue {
                     globalFocusState.focus = nil
+                }
+            }
+            .onChange(of: inputViewModel.showFilePicker) { _ , newValue in
+                if newValue {
+                    globalFocusState.focus = nil
+                }
+            }
+            .sheet(isPresented: $inputViewModel.showFilePicker) {
+                DocumentPicker { selectedFile in
+                    if let file = selectedFile {
+                        let draftFile = DraftFile(
+                            fileName: file.fileName,
+                            fileData: file.fileData,
+                            mimeType: file.mimeType
+                        )
+                        inputViewModel.setFile(draftFile)
+                    } else {
+                        inputViewModel.showFilePicker = false
+                    }
                 }
             }
     }

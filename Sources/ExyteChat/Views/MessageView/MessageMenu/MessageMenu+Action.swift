@@ -72,14 +72,33 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
     ]
 
     static public func menuItems(for message: Message) -> [DefaultMessageMenuAction] {
+        let hasFileAttachment = message.attachments.contains { $0.type == .file }
+        let hasImageAttachment = message.attachments.contains { $0.type == .image }
+        let hasRecording = message.recording != nil
+
         if message.user.isCurrentUser {
-            if message.attachments.isEmpty {
-                return allCases
-            } else {
+            if hasFileAttachment {
+                // Files: no edit, no copy
+                return [.reply, .delete]
+            } else if hasImageAttachment {
+                // Images: no edit, but allow copy
                 return [.copy, .reply, .delete]
+            } else if hasRecording {
+                // Recordings: no edit, but allow copy
+                return [.copy, .reply, .delete]
+            } else {
+                // Text-only: all options including edit
+                return allCases
             }
         } else {
-            return [.copy, .reply, .delete]
+            // Peer's messages: no edit
+            if hasFileAttachment {
+                // Files: no copy
+                return [.reply, .delete]
+            } else {
+                // Text, images, or recordings: allow copy
+                return [.copy, .reply, .delete]
+            }
         }
     }
 }

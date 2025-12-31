@@ -363,6 +363,7 @@ extension View {
     @ViewBuilder
     func bubbleBackground(_ message: Message, theme: ChatTheme, isReply: Bool = false) -> some View
     {
+        let hasFileAttachment = message.attachments.contains { $0.type == .file }
         let radius: CGFloat = !message.attachments.isEmpty ? 12 : 20
         let additionalMediaInset: CGFloat = message.attachments.count > 1 ? 2 : 0
         self
@@ -372,7 +373,7 @@ extension View {
             )
             .foregroundColor(theme.colors.messageText(message.user.type))
             .background {
-                if isReply || !message.text.isEmpty || message.recording != nil {
+                if isReply || !message.text.isEmpty || message.recording != nil || hasFileAttachment {
                     RoundedRectangle(cornerRadius: radius)
                         .foregroundColor(theme.colors.messageBG(message.user.type))
                         .opacity(isReply ? theme.style.replyOpacity : 1)

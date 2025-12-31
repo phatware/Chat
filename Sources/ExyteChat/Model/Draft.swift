@@ -8,6 +8,19 @@ import ExyteMediaPicker
 import GiphyUISDK
 #endif
 
+/// Represents a file attachment in a draft message
+public struct DraftFile: Sendable {
+    public let fileName: String
+    public let fileData: Data
+    public let mimeType: String
+
+    public init(fileName: String, fileData: Data, mimeType: String) {
+        self.fileName = fileName
+        self.fileData = fileData
+        self.mimeType = mimeType
+    }
+}
+
 #if GIPHY_UISDK
 public struct DraftMessage: Sendable {
     public var id: String?
@@ -16,6 +29,7 @@ public struct DraftMessage: Sendable {
     public let giphyMedia: GPHMedia?
     public let recording: Recording?
     public let replyMessage: ReplyMessage?
+    public let file: DraftFile?
     public let createdAt: Date
 
     public init(id: String? = nil,
@@ -24,6 +38,7 @@ public struct DraftMessage: Sendable {
                 giphyMedia: GPHMedia?,
                 recording: Recording?,
                 replyMessage: ReplyMessage?,
+                file: DraftFile? = nil,
                 createdAt: Date) {
         self.id = id
         self.text = text
@@ -31,6 +46,7 @@ public struct DraftMessage: Sendable {
         self.giphyMedia = giphyMedia
         self.recording = recording
         self.replyMessage = replyMessage
+        self.file = file
         self.createdAt = createdAt
     }
 }
@@ -41,6 +57,7 @@ public struct DraftMessage: Sendable {
     public let medias: [Media]
     public let recording: Recording?
     public let replyMessage: ReplyMessage?
+    public let file: DraftFile?
     public let createdAt: Date
 
     public init(id: String? = nil,
@@ -48,12 +65,14 @@ public struct DraftMessage: Sendable {
                 medias: [Media],
                 recording: Recording?,
                 replyMessage: ReplyMessage?,
+                file: DraftFile? = nil,
                 createdAt: Date) {
         self.id = id
         self.text = text
         self.medias = medias
         self.recording = recording
         self.replyMessage = replyMessage
+        self.file = file
         self.createdAt = createdAt
     }
 }

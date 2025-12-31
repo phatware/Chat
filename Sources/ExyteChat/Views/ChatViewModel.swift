@@ -12,6 +12,9 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var fullscreenAttachmentItem: Optional<Attachment> = nil
     @Published var fullscreenAttachmentPresented = false
 
+    @Published var fileToShare: URL?
+    @Published var fileSharePresented = false
+
     @Published var messageMenuRow: MessageRow?
     
     /// The messages frame that is currently being rendered in the Message Menu
@@ -29,13 +32,28 @@ final class ChatViewModel: ObservableObject {
     var globalFocusState: GlobalFocusState?
 
     func presentAttachmentFullScreen(_ attachment: Attachment) {
+        // For files, show share sheet instead of fullscreen viewer
+        if attachment.type == .file {
+            presentFileShare(attachment)
+            return
+        }
         fullscreenAttachmentItem = attachment
         fullscreenAttachmentPresented = true
     }
-    
+
     func dismissAttachmentFullScreen() {
         fullscreenAttachmentPresented = false
         fullscreenAttachmentItem = nil
+    }
+
+    func presentFileShare(_ attachment: Attachment) {
+        fileToShare = attachment.full
+        fileSharePresented = true
+    }
+
+    func dismissFileShare() {
+        fileSharePresented = false
+        fileToShare = nil
     }
     
     func updateAttachmentStatus(_ uploadUpdate: AttachmentUploadUpdate) {
@@ -55,7 +73,15 @@ final class ChatViewModel: ObservableObject {
     func messageMenuActionInternal(message: Message, action: DefaultMessageMenuAction) {
         switch action {
         case .copy:
-            UIPasteboard.general.string = message.text
+            // Check for image attachment first
+            if let imageAttachment = message.attachments.first(where: { $0.type == .image }),
+               let imageData = try? Data(contentsOf: imageAttachment.full),
+               let image = UIImage(data: imageData) {
+                UIPasteboard.general.image = image
+            } else if !message.text.isEmpty {
+                // Fall back to copying text
+                UIPasteboard.general.string = message.text
+            }
         case .reply:
             inputViewModel?.attachments.replyMessage = message.toReplyMessage()
             globalFocusState?.focus = .uuid(inputFieldId)

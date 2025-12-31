@@ -9,16 +9,23 @@ import ExyteMediaPicker
 @MainActor
 final class InputViewModel: ObservableObject {
 
+    /// Maximum allowed attachment size in bytes (5MB)
+    static let maxAttachmentSize: Int = 5 * 1024 * 1024
+
     @Published var text = ""
     @Published var attachments = InputViewAttachments()
     @Published var state: InputViewState = .empty
 
     @Published var showGiphyPicker = false
     @Published var showPicker = false
+    @Published var showFilePicker = false
 
     @Published var mediaPickerMode = MediaPickerMode.photos
 
     @Published var showActivityIndicator = false
+
+    /// Error message to display to the user
+    @Published var errorMessage: String?
 
     var recordingPlayer: RecordingPlayer?
     var didSendMessage: ((DraftMessage) -> Void)?
@@ -49,15 +56,14 @@ final class InputViewModel: ObservableObject {
     }
 
     func reset() {
-        DispatchQueue.main.async { [weak self] in
-            self?.showPicker = false
-            self?.showGiphyPicker = false
-            self?.text = ""
-            self?.saveEditingClosure = nil
-            self?.attachments = InputViewAttachments()
-            self?.subscribeValidation()
-            self?.state = .empty
-        }
+        showPicker = false
+        showGiphyPicker = false
+        showFilePicker = false
+        text = ""
+        saveEditingClosure = nil
+        attachments = InputViewAttachments()
+        subscribeValidation()
+        state = .empty
     }
 
     func send() {
@@ -71,6 +77,14 @@ final class InputViewModel: ObservableObject {
     func edit(_ closure: @escaping (String) -> Void) {
         saveEditingClosure = closure
         state = .editing
+    }
+
+    func setFile(_ file: DraftFile?) {
+        print("[InputViewModel] setFile called: \(file?.fileName ?? "nil"), size: \(file?.fileData.count ?? 0)")
+        attachments.file = file
+        showFilePicker = false
+        validateDraft()
+        print("[InputViewModel] After setFile - state: \(state), file attached: \(attachments.file != nil)")
     }
 
     func inputViewAction() -> (InputViewAction) -> Void {
@@ -91,6 +105,8 @@ final class InputViewModel: ObservableObject {
         case .camera:
             mediaPickerMode = .camera
             showPicker = true
+        case .files:
+            showFilePicker = true
         case .send:
             send()
         case .recordAudioTap:
@@ -142,16 +158,22 @@ final class InputViewModel: ObservableObject {
 
     private func recordAudio() {
         Task {
-            if await recorder.isRecording { return }
+            if await recorder.isRecording {
+                print("[InputViewModel] Already recording, skipping")
+                return
+            }
         }
         Task { @MainActor [recorder] in
+            print("[InputViewModel] Starting recording...")
             attachments.recording = Recording()
             let url = await recorder.startRecording { duration, samples in
                 DispatchQueue.main.async { [weak self] in
+                    print("[InputViewModel] Duration update: \(duration)")
                     self?.attachments.recording?.duration = duration
                     self?.attachments.recording?.waveformSamples = samples
                 }
             }
+            print("[InputViewModel] Recording URL: \(String(describing: url))")
             if state == .waitingForRecordingPermission {
                 state = .isRecordingTap
             }
@@ -163,16 +185,20 @@ final class InputViewModel: ObservableObject {
 private extension InputViewModel {
 
     func validateDraft() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            guard state != .editing else { return } // special case
-            if !self.text.isEmpty || !self.attachments.medias.isEmpty {
-                self.state = .hasTextOrMedia
-            } else if self.text.isEmpty,
-                      self.attachments.medias.isEmpty,
-                      self.attachments.recording == nil {
-                self.state = .empty
-            }
+        guard state != .editing else { return } // special case
+        let hasText = !self.text.isEmpty
+        let hasMedias = !self.attachments.medias.isEmpty
+        let hasFile = self.attachments.file != nil
+        print("[InputViewModel] validateDraft: hasText=\(hasText), hasMedias=\(hasMedias), hasFile=\(hasFile)")
+        if hasText || hasMedias || hasFile {
+            self.state = .hasTextOrMedia
+            print("[InputViewModel] State set to .hasTextOrMedia")
+        } else if self.text.isEmpty,
+                  self.attachments.medias.isEmpty,
+                  self.attachments.recording == nil,
+                  self.attachments.file == nil {
+            self.state = .empty
+            print("[InputViewModel] State set to .empty")
         }
     }
 
@@ -230,28 +256,105 @@ private extension InputViewModel {
 
     func sendMessage() {
         showActivityIndicator = true
+        print("[InputViewModel] sendMessage called")
+
+        Task {
+            // Check for empty content - nothing to send
+            let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let hasMedia = !attachments.medias.isEmpty
+            let hasFile = attachments.file != nil && attachments.file!.fileData.count > 0
+            let hasRecording = attachments.recording != nil && attachments.recording!.duration > 0
+            print("[InputViewModel] sendMessage checks: hasText=\(hasText), hasMedia=\(hasMedia), hasFile=\(hasFile), hasRecording=\(hasRecording)")
+
+            if !hasText && !hasMedia && !hasFile && !hasRecording {
+                await MainActor.run {
+                    showActivityIndicator = false
+                    // Silently ignore empty messages - just reset
+                    reset()
+                }
+                return
+            }
+
+            // Check for empty file
+            if let file = attachments.file, file.fileData.isEmpty {
+                await MainActor.run {
+                    showActivityIndicator = false
+                    errorMessage = "Cannot send empty file."
+                }
+                return
+            }
+
+            // Check for empty recording (0 duration)
+            if let recording = attachments.recording, recording.duration <= 0 {
+                await MainActor.run {
+                    showActivityIndicator = false
+                    errorMessage = "Recording is empty. Please record audio first."
+                }
+                return
+            }
+
+            // Check file size limit
+            if let file = attachments.file {
+                if file.fileData.count > Self.maxAttachmentSize {
+                    await MainActor.run {
+                        showActivityIndicator = false
+                        errorMessage = "File is too large. Maximum size is \(Self.maxAttachmentSize / 1024 / 1024)MB."
+                    }
+                    return
+                }
+            }
+
+            // Check media size limit
+            for media in attachments.medias {
+                if let url = await media.getURL() {
+                    do {
+                        let data = try Data(contentsOf: url)
+                        if data.count == 0 {
+                            await MainActor.run {
+                                showActivityIndicator = false
+                                errorMessage = "Cannot send empty media."
+                            }
+                            return
+                        }
+                        if data.count > Self.maxAttachmentSize {
+                            await MainActor.run {
+                                showActivityIndicator = false
+                                errorMessage = "Media is too large. Maximum size is \(Self.maxAttachmentSize / 1024 / 1024)MB."
+                            }
+                            return
+                        }
+                    } catch {
+                        // If we can't read the file, let it proceed and handle error later
+                    }
+                }
+            }
+
+            await MainActor.run {
 #if GIPHY_UISDK
-        let draft = DraftMessage(
-            text: self.text,
-            medias: attachments.medias,
-            giphyMedia: attachments.giphyMedia,
-            recording: attachments.recording,
-            replyMessage: attachments.replyMessage,
-            createdAt: Date()
-        )
+                let draft = DraftMessage(
+                    text: self.text,
+                    medias: attachments.medias,
+                    giphyMedia: attachments.giphyMedia,
+                    recording: attachments.recording,
+                    replyMessage: attachments.replyMessage,
+                    file: attachments.file,
+                    createdAt: Date()
+                )
 #else
-        let draft = DraftMessage(
-            text: self.text,
-            medias: attachments.medias,
-            recording: attachments.recording,
-            replyMessage: attachments.replyMessage,
-            createdAt: Date()
-        )
+                let draft = DraftMessage(
+                    text: self.text,
+                    medias: attachments.medias,
+                    recording: attachments.recording,
+                    replyMessage: attachments.replyMessage,
+                    file: attachments.file,
+                    createdAt: Date()
+                )
 #endif
-        didSendMessage?(draft)
-        DispatchQueue.main.async { [weak self] in
-            self?.showActivityIndicator = false
-            self?.reset()
+                print("[InputViewModel] Sending draft with file: \(draft.file?.fileName ?? "nil")")
+                didSendMessage?(draft)
+                showActivityIndicator = false
+                reset()
+            }
         }
     }
 }

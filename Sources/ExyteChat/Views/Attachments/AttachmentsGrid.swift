@@ -12,18 +12,24 @@ struct AttachmentsGrid: View {
     private let single: (Attachment)?
     private let grid: [Attachment]
     private let onlyOne: Bool
+    private let fileAttachments: [Attachment]
+    private let mediaAttachments: [Attachment]
 
     private let hidden: String?
     private let showMoreAttachmentId: String?
 
     init(attachments: [Attachment], isCurrentUser: Bool,
          onTap: @escaping (_ attachment: Attachment, _ isCancel: Bool) -> Void) {
-        var toShow = attachments
+        // Separate file attachments from media (image/video)
+        self.fileAttachments = attachments.filter { $0.type == .file }
+        self.mediaAttachments = attachments.filter { $0.type != .file }
+
+        var toShow = mediaAttachments
 
         if toShow.count > maxImages {
-            toShow = attachments.prefix(maxImages).map({ $0 })
-            hidden = "+\(attachments.count - (maxImages - 1))"
-            showMoreAttachmentId = attachments[safe: (maxImages - 1)]?.id
+            toShow = mediaAttachments.prefix(maxImages).map({ $0 })
+            hidden = "+\(mediaAttachments.count - (maxImages - 1))"
+            showMoreAttachmentId = mediaAttachments[safe: (maxImages - 1)]?.id
         } else {
             hidden = nil
             showMoreAttachmentId = nil
@@ -35,7 +41,7 @@ struct AttachmentsGrid: View {
             single = toShow.first
             grid = toShow.dropFirst().map { $0 }
         }
-        self.onlyOne = attachments.count == 1
+        self.onlyOne = mediaAttachments.count == 1 && fileAttachments.isEmpty
         self.onTap = onTap
         self.isCurrentUser = isCurrentUser
     }
@@ -46,6 +52,14 @@ struct AttachmentsGrid: View {
 
     var body: some View {
         VStack(spacing: 4) {
+            // File attachments shown as a vertical list
+            ForEach(fileAttachments) { file in
+                AttachmentCell(attachment: file, size: CGSize(width: 204, height: 60),
+                               showCancel: isCurrentUser, onTap: onTap)
+                    .frame(width: 204)
+            }
+
+            // Media attachments shown as grid
             if let attachment = single {
                 AttachmentCell(attachment: attachment, size: CGSize(width: 204, height: grid.isEmpty ? 200 : 100),
                                showCancel: isCurrentUser, onTap: onTap)

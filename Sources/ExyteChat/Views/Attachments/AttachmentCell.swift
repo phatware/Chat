@@ -79,6 +79,10 @@ public struct AttachmentCell: View {
                         }
                     }
                 }
+            } else if attachment.type == .file {
+                FileAttachmentView(fileName: attachment.fileName ?? "Unknown file") {
+                    onTap(attachment, false)
+                }
             } else {
                 content
                     .overlay {
@@ -86,9 +90,15 @@ public struct AttachmentCell: View {
                     }
             }
         }
-        .frame(width: size.width, height: size.height)
+        .applyIf(attachment.type != .file) {
+            $0.frame(width: size.width, height: size.height)
+        }
         .contentShape(Rectangle())
-        .simultaneousGesture(attachmentTapGesture)
+        .applyIf(attachment.type != .file) {
+            // Only add tap gesture for non-file attachments
+            // FileAttachmentView handles its own tap gesture
+            $0.simultaneousGesture(attachmentTapGesture)
+        }
     }
 
     @ViewBuilder

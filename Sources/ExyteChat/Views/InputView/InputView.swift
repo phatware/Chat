@@ -21,6 +21,7 @@ public enum InputViewAction: Sendable {
     case photo
     case add
     case camera
+    case files
     case send
 
     case recordAudioHold
@@ -72,6 +73,7 @@ public struct InputViewAttachments {
     var giphyMedia: GPHMedia?
 #endif
     var replyMessage: ReplyMessage?
+    var file: DraftFile?
 }
 
 struct InputView: View {
@@ -146,12 +148,7 @@ struct InputView: View {
         } else {
             switch style {
             case .message:
-                if isMediaAvailable() {
-                    attachButton
-                }
-                if isGiphyAvailable() {
-                    giphyButton
-                }
+                attachMenuButton
             case .signature:
                 if viewModel.mediaPickerMode == .cameraSelection {
                     addButton
@@ -168,9 +165,7 @@ struct InputView: View {
             switch state {
             case .hasRecording, .playingRecording, .pausedRecording:
                 recordWaveform
-            case .isRecordingHold:
-                swipeToCancel
-            case .isRecordingTap:
+            case .isRecordingHold, .isRecordingTap:
                 recordingInProgress
             default:
                 TextInputView(
@@ -190,8 +185,10 @@ struct InputView: View {
         Group {
             switch state {
             case .empty, .waitingForRecordingPermission:
-                if case .message = style, isMediaAvailable() {
-                    cameraButton
+                if isAudioAvailable() {
+                    inlineRecordButton
+                } else {
+                    Color.clear.frame(width: 8, height: 1)
                 }
             case .isRecordingHold, .isRecordingTap:
                 recordDurationInProcess
@@ -237,89 +234,152 @@ struct InputView: View {
             editingButtons
                 .frame(height: 48)
         }
-        else {
-            ZStack {
-                if [.isRecordingTap, .isRecordingHold].contains(state) {
-                    RecordIndicator()
-                        .viewSize(80)
-                        .foregroundColor(theme.colors.sendButtonBackground)
-                }
-                Group {
-                    if state.canSend || !isAudioAvailable()   {
-                        sendButton
-                            .disabled(!state.canSend)
-                    } else {
-                        recordButton
-                            .highPriorityGesture(dragGesture())
-                    }
-                }
-                .compositingGroup()
-                .overlay(alignment: .top) {
-                    Group {
-                        if state == .isRecordingTap {
-                            stopRecordButton
-                        } else if state == .isRecordingHold {
-                            lockRecordButton
-                        }
-                    }
-                    .sizeGetter($overlaySize)
-                    // hardcode 28 for now because sizeGetter returns 0 somehow
-                    .offset(y: (state == .isRecordingTap ? -28 : -overlaySize.height) - 24)
-                }
+        else if [.isRecordingTap, .isRecordingHold].contains(state) {
+            // Recording in progress - show simple stop button
+            Button {
+                onAction(.stopRecordAudio)
+            } label: {
+                Image(systemName: "stop.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(.white)
+                    .frame(width: 36, height: 36)
+                    .background(Circle().fill(Color.red))
             }
             .viewSize(48)
+        }
+        else if state.canSend {
+            // Has content to send - show send button
+            sendButton
+                .viewSize(48)
+        }
+        else {
+            // Empty state - mic is inline, show nothing outside
+            EmptyView()
         }
     }
 
     @ViewBuilder
     var viewOnTop: some View {
-        if let message = viewModel.attachments.replyMessage {
-            VStack(spacing: 8) {
-                Rectangle()
-                    .foregroundColor(theme.colors.messageFriendBG)
-                    .frame(height: 2)
-
-                HStack {
-                    theme.images.reply.replyToMessage
-                    Capsule()
-                        .foregroundColor(theme.colors.messageMyBG)
-                        .frame(width: 2)
-                    VStack(alignment: .leading) {
-                        Text(localization.replyToText + " " + message.user.name)
-                            .font(.caption2)
-                            .foregroundColor(theme.colors.mainCaptionText)
-                        if !message.text.isEmpty {
-                            textView(message.text)
-                                .font(.caption2)
-                                .lineLimit(1)
-                                .foregroundColor(theme.colors.mainText)
-                        }
-                    }
-                    .padding(.vertical, 2)
-
-                    Spacer()
-
-                    if let first = message.attachments.first {
-                        AsyncImageView(attachment: first, size: CGSize(width: 30, height: 30))
-                            .viewSize(30)
-                            .cornerRadius(4)
-                            .padding(.trailing, 16)
-                    }
-
-                    if let _ = message.recording {
-                        theme.images.inputView.microphone
-                            .renderingMode(.template)
-                            .foregroundColor(theme.colors.mainTint)
-                    }
-
-                    theme.images.reply.cancelReply
-                        .onTapGesture {
-                            viewModel.attachments.replyMessage = nil
-                        }
-                }
-                .padding(.horizontal, 26)
+        VStack(spacing: 0) {
+            // File attachment preview
+            if let file = viewModel.attachments.file {
+                fileAttachmentPreview(file)
             }
-            .fixedSize(horizontal: false, vertical: true)
+
+            // Reply message preview
+            if let message = viewModel.attachments.replyMessage {
+                VStack(spacing: 8) {
+                    Rectangle()
+                        .foregroundColor(theme.colors.messageFriendBG)
+                        .frame(height: 2)
+
+                    HStack {
+                        theme.images.reply.replyToMessage
+                        Capsule()
+                            .foregroundColor(theme.colors.messageMyBG)
+                            .frame(width: 2)
+                        VStack(alignment: .leading) {
+                            Text(localization.replyToText + " " + message.user.name)
+                                .font(.caption2)
+                                .foregroundColor(theme.colors.mainCaptionText)
+                            if !message.text.isEmpty {
+                                textView(message.text)
+                                    .font(.caption2)
+                                    .lineLimit(1)
+                                    .foregroundColor(theme.colors.mainText)
+                            }
+                        }
+                        .padding(.vertical, 2)
+
+                        Spacer()
+
+                        if let first = message.attachments.first {
+                            AsyncImageView(attachment: first, size: CGSize(width: 30, height: 30))
+                                .viewSize(30)
+                                .cornerRadius(4)
+                                .padding(.trailing, 16)
+                        }
+
+                        if let _ = message.recording {
+                            theme.images.inputView.microphone
+                                .renderingMode(.template)
+                                .foregroundColor(theme.colors.mainTint)
+                        }
+
+                        theme.images.reply.cancelReply
+                            .onTapGesture {
+                                viewModel.attachments.replyMessage = nil
+                            }
+                    }
+                    .padding(.horizontal, 26)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    @ViewBuilder
+    func fileAttachmentPreview(_ file: DraftFile) -> some View {
+        VStack(spacing: 8) {
+            Rectangle()
+                .foregroundColor(theme.colors.messageFriendBG)
+                .frame(height: 2)
+
+            HStack(spacing: 12) {
+                Image(systemName: fileIcon(for: file.fileName))
+                    .font(.system(size: 24))
+                    .foregroundColor(theme.colors.mainTint)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(file.fileName)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(theme.colors.mainText)
+                        .lineLimit(1)
+
+                    Text(formatFileSize(file.fileData.count))
+                        .font(.caption2)
+                        .foregroundColor(theme.colors.mainCaptionText)
+                }
+
+                Spacer()
+
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(theme.colors.mainCaptionText)
+                    .onTapGesture {
+                        viewModel.setFile(nil)
+                    }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func fileIcon(for fileName: String) -> String {
+        let ext = fileName.split(separator: ".").last?.lowercased() ?? ""
+        switch ext {
+        case "pdf": return "doc.fill"
+        case "doc", "docx": return "doc.text.fill"
+        case "xls", "xlsx": return "tablecells.fill"
+        case "ppt", "pptx": return "rectangle.split.3x1.fill"
+        case "txt", "rtf": return "doc.plaintext.fill"
+        case "zip", "rar", "7z", "tar", "gz": return "doc.zipper"
+        case "mp3", "wav", "m4a", "aac": return "waveform"
+        case "mp4", "mov", "avi", "mkv": return "play.rectangle.fill"
+        case "png", "jpg", "jpeg", "gif", "heic", "webp": return "photo.fill"
+        default: return "doc.fill"
+        }
+    }
+
+    private func formatFileSize(_ bytes: Int) -> String {
+        if bytes < 1024 {
+            return "\(bytes) B"
+        } else if bytes < 1024 * 1024 {
+            return String(format: "%.1f KB", Double(bytes) / 1024)
+        } else {
+            return String(format: "%.1f MB", Double(bytes) / (1024 * 1024))
         }
     }
 
@@ -335,6 +395,31 @@ struct InputView: View {
             theme.images.inputView.attach
                 .viewSize(24)
                 .padding(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 6))
+        }
+    }
+
+    var attachMenuButton: some View {
+        Menu {
+            Button {
+                onAction(.camera)
+            } label: {
+                Label("Camera", systemImage: "camera")
+            }
+            Button {
+                onAction(.photo)
+            } label: {
+                Label("Pictures", systemImage: "photo.on.rectangle")
+            }
+            Button {
+                onAction(.files)
+            } label: {
+                Label("Files", systemImage: "doc")
+            }
+        } label: {
+            Image(systemName: "paperclip")
+                .font(.system(size: 20))
+                .foregroundColor(theme.colors.mainTint)
+                .padding(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 8))
         }
     }
 
@@ -385,6 +470,21 @@ struct InputView: View {
             .viewSize(48)
             .circleBackground(theme.colors.sendButtonBackground)
             .frameGetter($recordButtonFrame)
+    }
+
+    var inlineRecordButton: some View {
+        Button {
+            onAction(.recordAudioTap)
+        } label: {
+            theme.images.inputView.microphone
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 22, height: 22)
+                .foregroundColor(theme.colors.mainTint)
+                .padding(EdgeInsets(top: 12, leading: 8, bottom: 12, trailing: 12))
+        }
+        .frameGetter($recordButtonFrame)
     }
 
     var deleteRecordButton: some View {

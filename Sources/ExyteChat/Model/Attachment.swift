@@ -8,13 +8,16 @@ import ExyteMediaPicker
 public enum AttachmentType: String, Codable, Sendable {
     case image
     case video
+    case file
 
     public var title: String {
         switch self {
         case .image:
             return "Image"
-        default:
+        case .video:
             return "Video"
+        case .file:
+            return "File"
         }
     }
 
@@ -60,9 +63,10 @@ public struct Attachment: Codable, Identifiable, Hashable, Sendable {
     public let type: AttachmentType
     public let thumbnailCacheKey: String?
     public let fullCacheKey: String?
+    public let fileName: String?  // For file attachments
 
     public init(id: String, thumbnail: URL, full: URL, type: AttachmentType, thumbnailCacheKey: String? = nil,
-                fullCacheKey: String? = nil, fullUploadStatus: UploadStatus? = nil) {
+                fullCacheKey: String? = nil, fullUploadStatus: UploadStatus? = nil, fileName: String? = nil) {
         self.id = id
         self.thumbnail = thumbnail
         self.full = full
@@ -70,12 +74,13 @@ public struct Attachment: Codable, Identifiable, Hashable, Sendable {
         self.thumbnailCacheKey = thumbnailCacheKey
         self.fullCacheKey = fullCacheKey
         self.fullUploadStatus = fullUploadStatus
+        self.fileName = fileName
     }
 
-    public init(id: String, url: URL, type: AttachmentType, cacheKey: String? = nil) {
-        self.init(id: id, thumbnail: url, full: url, type: type, thumbnailCacheKey: cacheKey, fullCacheKey: cacheKey)
+    public init(id: String, url: URL, type: AttachmentType, cacheKey: String? = nil, fileName: String? = nil) {
+        self.init(id: id, thumbnail: url, full: url, type: type, thumbnailCacheKey: cacheKey, fullCacheKey: cacheKey, fileName: fileName)
     }
-    
+
     public func copy(
         id: String? = nil,
         thumbnail: URL? = nil,
@@ -83,7 +88,8 @@ public struct Attachment: Codable, Identifiable, Hashable, Sendable {
         fullUploadStatus: UploadStatus? = nil,
         type: AttachmentType? = nil,
         thumbnailCacheKey: String? = nil,
-        fullCacheKey: String? = nil
+        fullCacheKey: String? = nil,
+        fileName: String? = nil
     ) -> Attachment {
         Attachment(
             id: id ?? self.id,
@@ -92,7 +98,8 @@ public struct Attachment: Codable, Identifiable, Hashable, Sendable {
             type: type ?? self.type,
             thumbnailCacheKey: thumbnailCacheKey ?? self.thumbnailCacheKey,
             fullCacheKey: fullCacheKey ?? self.fullCacheKey,
-            fullUploadStatus: fullUploadStatus ?? self.fullUploadStatus
+            fullUploadStatus: fullUploadStatus ?? self.fullUploadStatus,
+            fileName: fileName ?? self.fileName
         )
     }
 }
