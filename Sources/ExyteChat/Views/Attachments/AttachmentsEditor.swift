@@ -48,6 +48,14 @@ struct AttachmentsEditor<InputViewContent: View>: View {
         }
     }
 
+    /// Whether to show the signature input view at the bottom of the picker
+    private var showSignatureInput: Bool {
+        // Hide signature input in single-selection, no-preview mode
+        let showFullscreenPreview = mediaPickerSelectionParameters?.showFullscreenPreview ?? false
+        let selectionLimit = mediaPickerSelectionParameters?.selectionLimit ?? 1
+        return showFullscreenPreview || selectionLimit != 1
+    }
+
     var mediaPicker: some View {
         GeometryReader { g in
             MediaPicker(isPresented: $inputViewModel.showPicker) {
@@ -59,8 +67,10 @@ struct AttachmentsEditor<InputViewContent: View>: View {
                         .padding(.top, g.safeAreaInsets.top)
                     albumSelectionView
                     Spacer()
-                    inputView
-                        .padding(.bottom, g.safeAreaInsets.bottom)
+                    if showSignatureInput {
+                        inputView
+                            .padding(.bottom, g.safeAreaInsets.bottom)
+                    }
                 }
                 .background(mediaPickerTheme.main.pickerBackground.ignoresSafeArea())
             } cameraSelectionBuilder: { _, cancelClosure, cameraSelectionView in
@@ -72,8 +82,10 @@ struct AttachmentsEditor<InputViewContent: View>: View {
                         }
                         .padding(.top, g.safeAreaInsets.top)
                     Spacer()
-                    inputView
-                        .padding(.bottom, g.safeAreaInsets.bottom)
+                    if showSignatureInput {
+                        inputView
+                            .padding(.bottom, g.safeAreaInsets.bottom)
+                    }
                 }
                 .background(mediaPickerTheme.main.pickerBackground.ignoresSafeArea())
             }
@@ -92,12 +104,12 @@ struct AttachmentsEditor<InputViewContent: View>: View {
                 assembleSelectedMedia()
             }
             .onChange(of: inputViewModel.showPicker) {
-                let showFullscreenPreview = mediaPickerSelectionParameters?.showFullscreenPreview ?? true
+                let showFullscreenPreview = mediaPickerSelectionParameters?.showFullscreenPreview ?? false
                 let selectionLimit = mediaPickerSelectionParameters?.selectionLimit ?? 1
 
                 if selectionLimit == 1 && !showFullscreenPreview {
                     assembleSelectedMedia()
-                    inputViewModel.send()
+                    // Don't auto-send - let user see preview and press send manually
                 }
             }
             .applyIf(!mediaPickerThemeIsOverridden) {

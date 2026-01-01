@@ -227,13 +227,9 @@ private extension InputViewModel {
 #endif
 
     func subscribePicker() {
-        $showPicker
-            .sink { [weak self] value in
-                if !value {
-                    self?.attachments.medias = []
-                }
-            }
-            .store(in: &subscriptions)
+        // Note: Don't clear medias when picker closes - they should persist
+        // until the message is sent or user removes them manually.
+        // The reset() function handles clearing when message is sent.
     }
 
     func subscribeRecordPlayer() {

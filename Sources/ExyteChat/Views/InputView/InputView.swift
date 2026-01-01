@@ -261,6 +261,14 @@ struct InputView: View {
     @ViewBuilder
     var viewOnTop: some View {
         VStack(spacing: 0) {
+            // Media (image) attachment preview
+            if let media = viewModel.attachments.medias.first {
+                MediaAttachmentPreview(media: media) {
+                    viewModel.attachments.medias = []
+                }
+                .environmentObject(viewModel)
+            }
+
             // File attachment preview
             if let file = viewModel.attachments.file {
                 fileAttachmentPreview(file)
@@ -697,6 +705,76 @@ struct InputView: View {
 
     private func isMediaAvailable() -> Bool {
         return availableInputs.contains(AvailableInputType.media)
+    }
+}
+
+// MARK: - Media Attachment Preview
+
+struct MediaAttachmentPreview: View {
+    @Environment(\.chatTheme) private var theme
+
+    let media: Media
+    let onRemove: () -> Void
+
+    @State private var thumbnailImage: UIImage?
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Rectangle()
+                .foregroundColor(theme.colors.messageFriendBG)
+                .frame(height: 2)
+
+            HStack(spacing: 12) {
+                // Thumbnail
+                Group {
+                    if let image = thumbnailImage {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 44, height: 44)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    } else {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(theme.colors.messageFriendBG)
+                            .frame(width: 44, height: 44)
+                            .overlay {
+                                Image(systemName: "photo")
+                                    .foregroundColor(theme.colors.mainTint)
+                            }
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(media.type == .video ? "Video" : "Photo")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(theme.colors.mainText)
+                        .lineLimit(1)
+
+                    Text("Tap send to share")
+                        .font(.caption2)
+                        .foregroundColor(theme.colors.mainCaptionText)
+                }
+
+                Spacer()
+
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(theme.colors.mainCaptionText)
+                    .onTapGesture {
+                        onRemove()
+                    }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .task(id: media.id) {
+            thumbnailImage = nil
+            if let data = await media.getThumbnailData() {
+                thumbnailImage = UIImage(data: data)
+            }
+        }
     }
 }
 
