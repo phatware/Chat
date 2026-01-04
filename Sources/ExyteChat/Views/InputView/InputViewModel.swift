@@ -110,15 +110,11 @@ final class InputViewModel: ObservableObject {
         case .send:
             send()
         case .recordAudioTap:
-            Task {
-                state = await recorder.isAllowedToRecordAudio ? .isRecordingTap : .waitingForRecordingPermission
-                recordAudio()
-            }
+            state = .isRecordingTap
+            startRecording()
         case .recordAudioHold:
-            Task {
-                state = await recorder.isAllowedToRecordAudio ? .isRecordingHold : .waitingForRecordingPermission
-                recordAudio()
-            }
+            state = .isRecordingHold
+            startRecording()
         case .recordAudioLock:
             state = .isRecordingTap
         case .stopRecordAudio:
@@ -134,6 +130,7 @@ final class InputViewModel: ObservableObject {
                 unsubscribeRecordPlayer()
                 await recorder.stopRecording()
                 attachments.recording = nil
+                state = .empty
             }
         case .playRecord:
             state = .playingRecording
@@ -156,28 +153,40 @@ final class InputViewModel: ObservableObject {
         }
     }
 
-    private func recordAudio() {
-        Task {
+    private func startRecording() {
+        Task { @MainActor in
+            // Check if already recording
             if await recorder.isRecording {
-                print("[InputViewModel] Already recording, skipping")
                 return
             }
-        }
-        Task { @MainActor [recorder] in
-            print("[InputViewModel] Starting recording...")
+
+            // Check permission
+            let hasPermission = await recorder.isAllowedToRecordAudio
+            if !hasPermission {
+                state = .waitingForRecordingPermission
+            }
+
+            // Start recording
             attachments.recording = Recording()
-            let url = await recorder.startRecording { duration, samples in
-                DispatchQueue.main.async { [weak self] in
-                    print("[InputViewModel] Duration update: \(duration)")
+            let url = await recorder.startRecording { [weak self] duration, samples in
+                Task { @MainActor [weak self] in
                     self?.attachments.recording?.duration = duration
                     self?.attachments.recording?.waveformSamples = samples
                 }
             }
-            print("[InputViewModel] Recording URL: \(String(describing: url))")
+
+            // Update state if we were waiting for permission
             if state == .waitingForRecordingPermission {
                 state = .isRecordingTap
             }
-            attachments.recording?.url = url
+
+            // If recording failed (url is nil), reset state
+            if url == nil {
+                attachments.recording = nil
+                state = .empty
+            } else {
+                attachments.recording?.url = url
+            }
         }
     }
 }
@@ -185,20 +194,25 @@ final class InputViewModel: ObservableObject {
 private extension InputViewModel {
 
     func validateDraft() {
-        guard state != .editing else { return } // special case
+        // Don't interfere with editing or recording states
+        switch state {
+        case .editing, .isRecordingHold, .isRecordingTap, .hasRecording, .playingRecording, .pausedRecording, .waitingForRecordingPermission:
+            return
+        default:
+            break
+        }
+
         let hasText = !self.text.isEmpty
         let hasMedias = !self.attachments.medias.isEmpty
         let hasFile = self.attachments.file != nil
-        print("[InputViewModel] validateDraft: hasText=\(hasText), hasMedias=\(hasMedias), hasFile=\(hasFile)")
+
         if hasText || hasMedias || hasFile {
             self.state = .hasTextOrMedia
-            print("[InputViewModel] State set to .hasTextOrMedia")
         } else if self.text.isEmpty,
                   self.attachments.medias.isEmpty,
                   self.attachments.recording == nil,
                   self.attachments.file == nil {
             self.state = .empty
-            print("[InputViewModel] State set to .empty")
         }
     }
 

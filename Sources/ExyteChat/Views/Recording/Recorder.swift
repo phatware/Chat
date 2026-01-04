@@ -91,7 +91,15 @@ final actor Recorder {
 
     func onTimer(_ durationProgressHandler: @escaping ProgressHandler) {
         guard let recorder = audioRecorder else {
-            print("[Recorder] onTimer: audioRecorder is nil")
+            // Recorder is nil - stop the timer task
+            timerTask?.cancel()
+            timerTask = nil
+            return
+        }
+        guard recorder.isRecording else {
+            // Recording stopped - stop the timer task
+            timerTask?.cancel()
+            timerTask = nil
             return
         }
         recorder.updateMeters()
@@ -101,7 +109,6 @@ final actor Recorder {
         soundSamples.append(CGFloat(adjustedPower))
 
         let time = recorder.currentTime
-        print("[Recorder] onTimer: time=\(time), isRecording=\(recorder.isRecording)")
         durationProgressHandler(time, soundSamples)
     }
 

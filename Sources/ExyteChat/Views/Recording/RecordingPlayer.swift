@@ -94,6 +94,14 @@ final actor RecordingPlayer: ObservableObject {
 
     func reset() {
         if internalPlaying { pause() }
+        // Remove time observer before clearing player
+        if let observer = timeObserver {
+            player?.removeTimeObserver(observer)
+            timeObserver = nil
+        }
+        NotificationCenter.default.removeObserver(self)
+        player?.replaceCurrentItem(with: nil)
+        player = nil
         recording = nil
     }
 
@@ -109,7 +117,11 @@ final actor RecordingPlayer: ObservableObject {
         self.recording = recording
 
         NotificationCenter.default.removeObserver(self)
-        timeObserver = nil
+        // Properly remove time observer before clearing it
+        if let observer = timeObserver {
+            player?.removeTimeObserver(observer)
+            timeObserver = nil
+        }
         player?.replaceCurrentItem(with: nil)
 
         let playerItem = AVPlayerItem(url: url)
