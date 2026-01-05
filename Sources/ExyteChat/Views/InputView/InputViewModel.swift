@@ -241,9 +241,16 @@ private extension InputViewModel {
 #endif
 
     func subscribePicker() {
-        // Note: Don't clear medias when picker closes - they should persist
-        // until the message is sent or user removes them manually.
-        // The reset() function handles clearing when message is sent.
+        $showPicker
+            .removeDuplicates()
+            .sink { [weak self] isPresented in
+                guard let self else { return }
+                if !isPresented {
+                    // Ensure next open doesn't start in camera preview mode.
+                    self.mediaPickerMode = .photos
+                }
+            }
+            .store(in: &subscriptions)
     }
 
     func subscribeRecordPlayer() {

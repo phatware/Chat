@@ -771,8 +771,13 @@ struct MediaAttachmentPreview: View {
         .fixedSize(horizontal: false, vertical: true)
         .task(id: media.id) {
             thumbnailImage = nil
-            if let data = await media.getThumbnailData() {
-                thumbnailImage = UIImage(data: data)
+            if let data = await media.getThumbnailData(), let image = UIImage(data: data) {
+                thumbnailImage = image
+                return
+            }
+
+            if media.type == .image, let data = await media.getData(), let image = UIImage(data: data) {
+                thumbnailImage = image
             }
         }
     }

@@ -73,12 +73,34 @@ struct AttachmentsEditor<InputViewContent: View>: View {
                     }
                 }
                 .background(mediaPickerTheme.main.pickerBackground.ignoresSafeArea())
-            } cameraSelectionBuilder: { _, cancelClosure, cameraSelectionView in
+            } cameraSelectionBuilder: { _, discardClosure, cameraSelectionView in
                 VStack {
                     cameraSelectionView
                         .overlay(alignment: .top) {
-                            cameraSelectionHeaderView(cancelClosure: cancelClosure)
+                            cameraSelectionHeaderView(closeClosure: {
+                                discardClosure()
+                                inputViewModel.showPicker = false
+                            })
                                 .padding(.top, 12)
+                        }
+                        .overlay(alignment: .bottom) {
+                            HStack {
+                                Button("Retake") {
+                                    discardClosure()
+                                }
+
+                                Spacer()
+
+                                Button("Done") {
+                                    inputViewModel.showPicker = false
+                                }
+                            }
+                            .foregroundColor(mediaPickerTheme.main.pickerText)
+                            .font(.subheadline)
+                            .padding(.horizontal, 24)
+                            .padding(.top, 14)
+                            .padding(.bottom, max(g.safeAreaInsets.bottom, 18))
+                            .background(.ultraThinMaterial)
                         }
                         .padding(.top, g.safeAreaInsets.top)
                     Spacer()
@@ -106,6 +128,11 @@ struct AttachmentsEditor<InputViewContent: View>: View {
             .onChange(of: inputViewModel.showPicker) {
                 let showFullscreenPreview = mediaPickerSelectionParameters?.showFullscreenPreview ?? false
                 let selectionLimit = mediaPickerSelectionParameters?.selectionLimit ?? 1
+
+                if !inputViewModel.showPicker {
+                    // Ensure the next open starts in a sane mode.
+                    inputViewModel.mediaPickerMode = .photos
+                }
 
                 if selectionLimit == 1 && !showFullscreenPreview {
                     assembleSelectedMedia()
@@ -191,9 +218,9 @@ struct AttachmentsEditor<InputViewContent: View>: View {
         .padding(.bottom, 5)
     }
 
-    func cameraSelectionHeaderView(cancelClosure: @escaping ()->()) -> some View {
+    func cameraSelectionHeaderView(closeClosure: @escaping ()->()) -> some View {
         HStack {
-            Button(action: cancelClosure) {
+            Button(action: closeClosure) {
                 theme.images.mediaPicker.cross
                     .imageScale(.large)
             }
