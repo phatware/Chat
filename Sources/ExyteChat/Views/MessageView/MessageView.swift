@@ -347,10 +347,11 @@ struct MessageView: View {
                 if needsCapsule {
                     MessageTimeWithCapsuleView(
                         text: message.time, isCurrentUser: message.user.isCurrentUser,
-                        chatTheme: theme)
+                        chatTheme: theme, expiresAt: message.expiresAt)
                 } else {
                     MessageTimeView(
-                        text: message.time, userType: message.user.type, chatTheme: theme)
+                        text: message.time, userType: message.user.type, chatTheme: theme,
+                        expiresAt: message.expiresAt)
                 }
             }
         }

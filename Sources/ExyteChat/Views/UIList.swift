@@ -11,6 +11,8 @@ public extension Notification.Name {
     static let onScrollToBottom = Notification.Name("onScrollToBottom")
 }
 
+private let scrollBottomTolerance = CGFloat(25)
+
 struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
 
     typealias MessageBuilderClosure = ChatView<MessageContent, InputView, DefaultMessageMenuAction>.MessageBuilderClosure
@@ -45,6 +47,7 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
     let ids: [String]
     let listSwipeActions: ListSwipeActions
     let keyboardDismissMode: UIScrollView.KeyboardDismissMode
+
 
     @State var isScrolledToTop = false
     @State var updateQueue = UpdateQueue()
@@ -220,8 +223,9 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
             // After insert, check if we're actually at the bottom and update state
             // This fixes the scroll button appearing incorrectly on first message
             // or when new messages are added while already at bottom
-            DispatchQueue.main.async {
-                let isAtBottom = tableView.contentOffset.y <= 0
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(350)) {
+                // Use tolerance to account for small scroll offsets during animations
+                let isAtBottom = tableView.contentOffset.y <= scrollBottomTolerance
                 if isAtBottom {
                     self.isScrolledToBottom = true
                 }
@@ -631,7 +635,7 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
         }
 
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
-            isScrolledToBottom = scrollView.contentOffset.y <= 0
+            isScrolledToBottom = scrollView.contentOffset.y <= scrollBottomTolerance
             isScrolledToTop = scrollView.contentOffset.y >= scrollView.contentSize.height - scrollView.frame.height - 1
         }
     }
@@ -680,3 +684,4 @@ actor UpdateQueue {
         isProcessing = false
     }
 }
+

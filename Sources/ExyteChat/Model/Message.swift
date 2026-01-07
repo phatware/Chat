@@ -58,6 +58,7 @@ public struct Message: Identifiable, Hashable, Sendable {
     public var user: User
     public var status: Status?
     public var createdAt: Date
+    public var expiresAt: Date?  // Message expiration time (nil = never expires)
 
     public var text: String
     public var attachments: [Attachment]
@@ -72,6 +73,7 @@ public struct Message: Identifiable, Hashable, Sendable {
                 user: User,
                 status: Status? = nil,
                 createdAt: Date = Date(),
+                expiresAt: Date? = nil,
                 text: String = "",
                 attachments: [Attachment] = [],
                 giphyMediaId: String? = nil,
@@ -83,6 +85,7 @@ public struct Message: Identifiable, Hashable, Sendable {
         self.user = user
         self.status = status
         self.createdAt = createdAt
+        self.expiresAt = expiresAt
         self.text = text
         self.attachments = attachments
         self.giphyMediaId = giphyMediaId
