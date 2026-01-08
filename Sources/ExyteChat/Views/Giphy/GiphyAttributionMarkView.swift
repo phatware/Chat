@@ -1,3 +1,5 @@
+#if GIPHY_UISDK
+
 import SwiftUI
 
 class CustomTabBarController: UITabBarController {
@@ -30,3 +32,5 @@ struct GiphyAttributionMarkView: View {
     }
     
 }
+
+#endif
