@@ -33,7 +33,7 @@ struct ExpirationCountdownView: View {
         TimelineView(.periodic(from: .now, by: 15)) { context in
             let remaining = expiresAt.timeIntervalSince(context.date)
 
-            if remaining > -10 {
+            if remaining > -10 && remaining < 3600 * 48 {
                 HStack(spacing: 2) {
                     Image(systemName: "timer")
                         .font(.system(size: 9))
