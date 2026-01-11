@@ -22,6 +22,7 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
 
     case copy
     case reply
+    case retry(retryClosure: @Sendable () -> Void)
     case edit(saveClosure: @Sendable (String) -> Void)
     case delete
 
@@ -31,6 +32,8 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
             "Copy"
         case .reply:
             "Reply"
+        case .retry:
+            "Retry"
         case .edit:
             "Edit"
         case .delete:
@@ -44,6 +47,8 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
             Image(systemName: "doc.on.doc")
         case .reply:
             Image(systemName: "arrowshape.turn.up.left")
+        case .retry:
+            Image(systemName: "arrow.clockwise")
         case .edit:
             if #available(iOS 18.0, macCatalyst 18.0, *) {
                 Image(systemName: "bubble.and.pencil")
@@ -59,6 +64,7 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
         switch (lhs, rhs) {
         case (.copy, .copy),
              (.reply, .reply),
+             (.retry(_), .retry(_)),
              (.edit(_), .edit(_)),
              (.delete, .delete):
             return true
@@ -76,22 +82,37 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
         let hasImageAttachment = message.attachments.contains { $0.type == .image }
         let hasRecording = message.recording != nil
 
+        // Check if message has error status (failed to send)
+        let hasError: Bool
+        if case .error(_) = message.status {
+            hasError = true
+        } else {
+            hasError = false
+        }
+
         if message.user.isCurrentUser {
+            // For messages with error status, show Retry instead of Reply
+            let replyOrRetry: DefaultMessageMenuAction = hasError ? .retry(retryClosure: {}) : .reply
+
             if hasFileAttachment {
                 // Files: no edit, no copy
-                return [.reply, .delete]
+                return [replyOrRetry, .delete]
             } else if hasImageAttachment {
                 // Images: no edit, but allow copy
-                return [.copy, .reply, .delete]
+                return [.copy, replyOrRetry, .delete]
             } else if hasRecording {
                 // Recordings: no edit, but allow copy
-                return [.copy, .reply, .delete]
+                return [.copy, replyOrRetry, .delete]
             } else {
-                // Text-only: all options including edit
-                return allCases
+                // Text-only: all options including edit (but no edit for error messages)
+                if hasError {
+                    return [.copy, replyOrRetry, .delete]
+                } else {
+                    return allCases
+                }
             }
         } else {
-            // Peer's messages: no edit
+            // Peer's messages: no edit, no retry (only current user's messages can be retried)
             if hasFileAttachment {
                 // Files: no copy
                 return [.reply, .delete]

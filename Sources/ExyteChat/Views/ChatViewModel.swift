@@ -85,6 +85,9 @@ final class ChatViewModel: ObservableObject {
         case .reply:
             inputViewModel?.attachments.replyMessage = message.toReplyMessage()
             globalFocusState?.focus = .uuid(inputFieldId)
+        case .retry:
+            // Retry action is handled by the app via onMessageMenuAction closure
+            break
         case .edit(let saveClosure):
             inputViewModel?.text = message.text
             inputViewModel?.edit(saveClosure)
