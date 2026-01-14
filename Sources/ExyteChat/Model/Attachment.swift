@@ -32,13 +32,13 @@ public enum AttachmentType: String, Codable, Sendable {
 }
 
 public struct Attachment: Codable, Identifiable, Hashable, Sendable {
-    
+
     public enum UploadStatus: Sendable, Codable, Hashable {
         case inProgress(Int?) // value = percent upto 99%, nil no percent shown, progress indicator only
         case complete
         case cancelled
         case error
-        
+
         public static func == (lhs: UploadStatus, rhs: UploadStatus) -> Bool {
             switch (lhs, rhs) {
             case (.error, .error):
@@ -54,8 +54,8 @@ public struct Attachment: Codable, Identifiable, Hashable, Sendable {
             }
         }
     }
-    
-    
+
+
     public let id: String
     public let thumbnail: URL
     public let full: URL
@@ -64,9 +64,10 @@ public struct Attachment: Codable, Identifiable, Hashable, Sendable {
     public let thumbnailCacheKey: String?
     public let fullCacheKey: String?
     public let fileName: String?  // For file attachments
+    public let mimeType: String?  // MIME type for file attachments (e.g., "video/mp4")
 
     public init(id: String, thumbnail: URL, full: URL, type: AttachmentType, thumbnailCacheKey: String? = nil,
-                fullCacheKey: String? = nil, fullUploadStatus: UploadStatus? = nil, fileName: String? = nil) {
+                fullCacheKey: String? = nil, fullUploadStatus: UploadStatus? = nil, fileName: String? = nil, mimeType: String? = nil) {
         self.id = id
         self.thumbnail = thumbnail
         self.full = full
@@ -75,10 +76,11 @@ public struct Attachment: Codable, Identifiable, Hashable, Sendable {
         self.fullCacheKey = fullCacheKey
         self.fullUploadStatus = fullUploadStatus
         self.fileName = fileName
+        self.mimeType = mimeType
     }
 
-    public init(id: String, url: URL, type: AttachmentType, cacheKey: String? = nil, fileName: String? = nil) {
-        self.init(id: id, thumbnail: url, full: url, type: type, thumbnailCacheKey: cacheKey, fullCacheKey: cacheKey, fileName: fileName)
+    public init(id: String, url: URL, type: AttachmentType, cacheKey: String? = nil, fileName: String? = nil, mimeType: String? = nil) {
+        self.init(id: id, thumbnail: url, full: url, type: type, thumbnailCacheKey: cacheKey, fullCacheKey: cacheKey, fileName: fileName, mimeType: mimeType)
     }
 
     public func copy(
@@ -89,7 +91,8 @@ public struct Attachment: Codable, Identifiable, Hashable, Sendable {
         type: AttachmentType? = nil,
         thumbnailCacheKey: String? = nil,
         fullCacheKey: String? = nil,
-        fileName: String? = nil
+        fileName: String? = nil,
+        mimeType: String? = nil
     ) -> Attachment {
         Attachment(
             id: id ?? self.id,
@@ -99,7 +102,13 @@ public struct Attachment: Codable, Identifiable, Hashable, Sendable {
             thumbnailCacheKey: thumbnailCacheKey ?? self.thumbnailCacheKey,
             fullCacheKey: fullCacheKey ?? self.fullCacheKey,
             fullUploadStatus: fullUploadStatus ?? self.fullUploadStatus,
-            fileName: fileName ?? self.fileName
+            fileName: fileName ?? self.fileName,
+            mimeType: mimeType ?? self.mimeType
         )
+    }
+
+    /// Check if this attachment is a video file (file attachment with video MIME type)
+    public var isVideoFile: Bool {
+        type == .file && (mimeType?.hasPrefix("video/") ?? false)
     }
 }

@@ -26,7 +26,8 @@ struct AttachmentsPage: View {
                     ActivityIndicator()
                 }
             }
-        } else if attachment.type == .video {
+        } else if attachment.type == .video || attachment.isVideoFile {
+            // Handle both regular video attachments and video files
             VideoView(viewModel: VideoViewModel(attachment: attachment))
         } else {
             Rectangle()

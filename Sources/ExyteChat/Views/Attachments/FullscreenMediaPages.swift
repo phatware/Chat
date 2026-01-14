@@ -102,19 +102,19 @@ struct FullscreenMediaPages: View {
             }
         }
         .overlay(alignment: .topLeading) {
-            if viewModel.showMinis {
-                Button(action: onClose) {
-                    theme.images.mediaPicker.cross
-                        .imageScale(.large)
-                        .padding(5)
-                }
-                .tint(theme.colors.mainText)
-                .padding(.leading, 15)
-                .offset(y: safeAreaInsets.top - 5)
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 32, height: 32)
+                    .background(Circle().fill(Color.black.opacity(0.5)))
             }
+            .padding(.leading, 15)
+            .offset(y: safeAreaInsets.top + 5)
         }
         .overlay(alignment: .topTrailing) {
-            if viewModel.showMinis, viewModel.attachments[viewModel.index].type == .video {
+            let currentAttachment = viewModel.attachments[viewModel.index]
+            if viewModel.showMinis, (currentAttachment.type == .video || currentAttachment.isVideoFile) {
                 HStack(spacing: 20) {
                     (viewModel.videoPlaying ? theme.images.fullscreenMedia.pause : theme.images.fullscreenMedia.play)
                         .resizable()
@@ -137,8 +137,8 @@ struct FullscreenMediaPages: View {
                         }
                 }
                 .foregroundColor(.white)
-                .padding(.trailing, 10)
-                .offset(y: safeAreaInsets.top - 5)
+                .padding(.horizontal, 10)
+                .offset(y: safeAreaInsets.top)
             }
         }
     }

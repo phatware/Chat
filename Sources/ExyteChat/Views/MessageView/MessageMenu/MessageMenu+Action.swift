@@ -24,6 +24,7 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
     case reply
     case retry(retryClosure: @Sendable () -> Void)
     case edit(saveClosure: @Sendable (String) -> Void)
+    case share
     case delete
 
     public func title() -> String {
@@ -36,6 +37,8 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
             "Retry"
         case .edit:
             "Edit"
+        case .share:
+            "Share"
         case .delete:
             "Delete"
         }
@@ -55,6 +58,8 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
             } else {
                 Image(systemName: "square.and.pencil")
             }
+        case .share:
+            Image(systemName: "square.and.arrow.up")
         case .delete:
             Image(systemName: "trash")
         }
@@ -66,6 +71,7 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
              (.reply, .reply),
              (.retry(_), .retry(_)),
              (.edit(_), .edit(_)),
+             (.share, .share),
              (.delete, .delete):
             return true
         default:
@@ -80,6 +86,7 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
     static public func menuItems(for message: Message) -> [DefaultMessageMenuAction] {
         let hasFileAttachment = message.attachments.contains { $0.type == .file }
         let hasImageAttachment = message.attachments.contains { $0.type == .image }
+        let hasVideoAttachment = message.attachments.contains { $0.type == .video }
         let hasRecording = message.recording != nil
 
         // Check if message has error status (failed to send)
@@ -95,14 +102,17 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
             let replyOrRetry: DefaultMessageMenuAction = hasError ? .retry(retryClosure: {}) : .reply
 
             if hasFileAttachment {
-                // Files: no edit, no copy
-                return [replyOrRetry, .delete]
+                // Files (including video files): no edit, no copy, add share
+                return [.share, replyOrRetry, .delete]
+            } else if hasVideoAttachment {
+                // Video attachments: add share
+                return [.share, replyOrRetry, .delete]
             } else if hasImageAttachment {
                 // Images: no edit, but allow copy
                 return [.copy, replyOrRetry, .delete]
             } else if hasRecording {
-                // Recordings: no edit, but allow copy
-                return [.copy, replyOrRetry, .delete]
+                // Recordings: no edit, add share
+                return [.share, replyOrRetry, .delete]
             } else {
                 // Text-only: all options including edit (but no edit for error messages)
                 if hasError {
@@ -114,10 +124,16 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
         } else {
             // Peer's messages: no edit, no retry (only current user's messages can be retried)
             if hasFileAttachment {
-                // Files: no copy
-                return [.reply, .delete]
+                // Files (including video files): no copy, add share
+                return [.share, .reply, .delete]
+            } else if hasVideoAttachment {
+                // Video attachments: add share
+                return [.share, .reply, .delete]
+            } else if hasRecording {
+                // Recordings: add share
+                return [.share, .reply, .delete]
             } else {
-                // Text, images, or recordings: allow copy
+                // Text or images: allow copy
                 return [.copy, .reply, .delete]
             }
         }

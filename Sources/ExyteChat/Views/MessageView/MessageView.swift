@@ -60,7 +60,7 @@ struct MessageView: View {
         let widthWithoutMedia =
             UIScreen.main.bounds.width
             - (message.user.isCurrentUser
-                ? MessageView.horizontalNoAvatarPadding : avatarViewSize.width)
+                ? MessageView.horizontalNoAvatarPadding : MessageView.horizontalScreenEdgePadding)
             - statusSize.width
             - MessageView.horizontalBubblePadding
             - textPaddings
@@ -105,10 +105,6 @@ struct MessageView: View {
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 0) {
-            if !message.user.isCurrentUser {
-                avatarView
-            }
-
             VStack(alignment: message.user.isCurrentUser ? .trailing : .leading, spacing: 2) {
                 if !isDisplayingMessageMenu, let reply = message.replyMessage?.toMessage() {
                     replyBubbleView(reply)
@@ -135,6 +131,7 @@ struct MessageView: View {
         }
         .padding(.top, topPadding)
         .padding(.bottom, bottomPadding)
+        .padding(.leading, message.user.isCurrentUser ? 0 : MessageView.horizontalScreenEdgePadding)
         .padding(.trailing, message.user.isCurrentUser ? MessageView.horizontalNoAvatarPadding : 0)
         .padding(
             message.user.isCurrentUser ? .leading : .trailing, MessageView.horizontalBubblePadding

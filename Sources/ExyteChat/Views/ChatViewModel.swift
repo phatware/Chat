@@ -5,6 +5,7 @@
 import Foundation
 import Combine
 import UIKit
+import AVFoundation
 
 @MainActor
 final class ChatViewModel: ObservableObject {
@@ -16,14 +17,14 @@ final class ChatViewModel: ObservableObject {
     @Published var fileSharePresented = false
 
     @Published var messageMenuRow: MessageRow?
-    
+
     /// The messages frame that is currently being rendered in the Message Menu
     /// - Note: Used to further refine a messages frame (instead of using the cell boundary), mainly used for positioning reactions
     @Published var messageFrame: CGRect = .zero
-    
+
     /// Provides a mechanism to issue haptic feedback to the user
     /// - Note: Used when launching the MessageMenu
-    
+
     let inputFieldId = UUID()
 
     var didSendMessage: (DraftMessage) -> Void = {_ in }
@@ -32,13 +33,39 @@ final class ChatViewModel: ObservableObject {
     var globalFocusState: GlobalFocusState?
 
     func presentAttachmentFullScreen(_ attachment: Attachment) {
-        // For files, show share sheet instead of fullscreen viewer
+        // For video files, check if playable and show fullscreen video preview
+        if attachment.isVideoFile {
+            Task {
+                let canPlay = await checkVideoPlayable(url: attachment.full)
+                if canPlay {
+                    // Show fullscreen video preview
+                    fullscreenAttachmentItem = attachment
+                    fullscreenAttachmentPresented = true
+                } else {
+                    // Fall back to share sheet
+                    presentFileShare(attachment)
+                }
+            }
+            return
+        }
+
+        // For regular files, show share sheet instead of fullscreen viewer
         if attachment.type == .file {
             presentFileShare(attachment)
             return
         }
         fullscreenAttachmentItem = attachment
         fullscreenAttachmentPresented = true
+    }
+
+    /// Check if a video URL is playable
+    private func checkVideoPlayable(url: URL) async -> Bool {
+        let asset = AVURLAsset(url: url)
+        do {
+            return try await asset.load(.isPlayable)
+        } catch {
+            return false
+        }
     }
 
     func dismissAttachmentFullScreen() {
@@ -92,6 +119,16 @@ final class ChatViewModel: ObservableObject {
             inputViewModel?.text = message.text
             inputViewModel?.edit(saveClosure)
             globalFocusState?.focus = .uuid(inputFieldId)
+        case .share:
+            // Share file, video, or recording
+            if let fileAttachment = message.attachments.first(where: { $0.type == .file }) {
+                presentFileShare(fileAttachment)
+            } else if let videoAttachment = message.attachments.first(where: { $0.type == .video }) {
+                presentFileShare(videoAttachment)
+            } else if let recording = message.recording, let url = recording.url {
+                fileToShare = url
+                fileSharePresented = true
+            }
         case .delete:
             // Delete action is handled by the app via onMessageMenuAction closure
             break

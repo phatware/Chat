@@ -80,8 +80,14 @@ public struct AttachmentCell: View {
                     }
                 }
             } else if attachment.type == .file {
-                FileAttachmentView(fileName: attachment.fileName ?? "Unknown file") {
-                    onTap(attachment, false)
+                if attachment.isVideoFile {
+                    VideoFileAttachmentView(attachment: attachment) {
+                        onTap(attachment, false)
+                    }
+                } else {
+                    FileAttachmentView(fileName: attachment.fileName ?? "Unknown file") {
+                        onTap(attachment, false)
+                    }
                 }
             } else {
                 content
