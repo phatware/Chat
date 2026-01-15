@@ -23,6 +23,7 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
     case copy
     case reply
     case retry(retryClosure: @Sendable () -> Void)
+    case resend(resendClosure: @Sendable () -> Void)
     case edit(saveClosure: @Sendable (String) -> Void)
     case share
     case delete
@@ -35,6 +36,8 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
             "Reply"
         case .retry:
             "Retry"
+        case .resend:
+            "Resend"
         case .edit:
             "Edit"
         case .share:
@@ -51,6 +54,8 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
         case .reply:
             Image(systemName: "arrowshape.turn.up.left")
         case .retry:
+            Image(systemName: "arrow.clockwise")
+        case .resend:
             Image(systemName: "arrow.clockwise")
         case .edit:
             if #available(iOS 18.0, macCatalyst 18.0, *) {
@@ -70,6 +75,7 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
         case (.copy, .copy),
              (.reply, .reply),
              (.retry(_), .retry(_)),
+             (.resend(_), .resend(_)),
              (.edit(_), .edit(_)),
              (.share, .share),
              (.delete, .delete):
@@ -97,26 +103,44 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
             hasError = false
         }
 
+        // Check if message is in "sent" status (uploaded but no delivery notification)
+        // and is over 2 hours old - eligible for resend
+        let canResend: Bool
+        if case .sent = message.status {
+            let twoHoursAgo = Date().addingTimeInterval(-2 * 60 * 60)
+            canResend = message.createdAt < twoHoursAgo
+        } else {
+            canResend = false
+        }
+
         if message.user.isCurrentUser {
             // For messages with error status, show Retry instead of Reply
-            let replyOrRetry: DefaultMessageMenuAction = hasError ? .retry(retryClosure: {}) : .reply
+            // For sent messages over 2h old, show Resend instead of Reply
+            let replyOrRetryOrResend: DefaultMessageMenuAction
+            if hasError {
+                replyOrRetryOrResend = .retry(retryClosure: {})
+            } else if canResend {
+                replyOrRetryOrResend = .resend(resendClosure: {})
+            } else {
+                replyOrRetryOrResend = .reply
+            }
 
             if hasFileAttachment {
                 // Files (including video files): no edit, no copy, add share
-                return [.share, replyOrRetry, .delete]
+                return [.share, replyOrRetryOrResend, .delete]
             } else if hasVideoAttachment {
                 // Video attachments: add share
-                return [.share, replyOrRetry, .delete]
+                return [.share, replyOrRetryOrResend, .delete]
             } else if hasImageAttachment {
                 // Images: no edit, but allow copy
-                return [.copy, replyOrRetry, .delete]
+                return [.copy, replyOrRetryOrResend, .delete]
             } else if hasRecording {
                 // Recordings: no edit, add share
-                return [.share, replyOrRetry, .delete]
+                return [.share, replyOrRetryOrResend, .delete]
             } else {
-                // Text-only: all options including edit (but no edit for error messages)
-                if hasError {
-                    return [.copy, replyOrRetry, .delete]
+                // Text-only: all options including edit (but no edit for error/resend messages)
+                if hasError || canResend {
+                    return [.copy, replyOrRetryOrResend, .delete]
                 } else {
                     return allCases
                 }

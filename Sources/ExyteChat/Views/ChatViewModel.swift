@@ -115,6 +115,9 @@ final class ChatViewModel: ObservableObject {
         case .retry:
             // Retry action is handled by the app via onMessageMenuAction closure
             break
+        case .resend:
+            // Resend action is handled by the app via onMessageMenuAction closure
+            break
         case .edit(let saveClosure):
             inputViewModel?.text = message.text
             inputViewModel?.edit(saveClosure)
