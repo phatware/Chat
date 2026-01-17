@@ -105,9 +105,22 @@ final class ChatViewModel: ObservableObject {
                let imageData = try? Data(contentsOf: imageAttachment.full),
                let image = UIImage(data: imageData) {
                 UIPasteboard.general.image = image
+                // Auto-clear clipboard after 120 seconds for security
+                DispatchQueue.main.asyncAfter(deadline: .now() + 120) {
+                    if UIPasteboard.general.image == image {
+                        UIPasteboard.general.image = nil
+                    }
+                }
             } else if !message.text.isEmpty {
                 // Fall back to copying text
-                UIPasteboard.general.string = message.text
+                let copiedText = message.text
+                UIPasteboard.general.string = copiedText
+                // Auto-clear clipboard after 120 seconds for security
+                DispatchQueue.main.asyncAfter(deadline: .now() + 120) {
+                    if UIPasteboard.general.string == copiedText {
+                        UIPasteboard.general.string = ""
+                    }
+                }
             }
         case .reply:
             inputViewModel?.attachments.replyMessage = message.toReplyMessage()
