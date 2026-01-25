@@ -9,8 +9,25 @@ import ExyteMediaPicker
 @MainActor
 final class InputViewModel: ObservableObject {
 
-    /// Maximum allowed attachment size in bytes (5MB)
-    static let maxAttachmentSize: Int = 5 * 1024 * 1024
+    /// Default maximum allowed attachment size in bytes (1MB for free tier).
+    static let defaultMaxAttachmentSize: Int = 1 * 1024 * 1024
+
+    /// UserDefaults key for max attachment size.
+    /// NOTE: This key must match YMConstants.UserDefaults.chatMaxAttachmentSize in the host app.
+    private static let maxAttachmentSizeKey = "chat.maxAttachmentSize"
+
+    /// Maximum allowed attachment size in bytes.
+    /// Reads from UserDefaults, allowing external configuration (e.g., by SubscriptionManager).
+    var maxAttachmentSize: Int {
+        let stored = UserDefaults.standard.integer(forKey: Self.maxAttachmentSizeKey)
+        return stored > 0 ? stored : Self.defaultMaxAttachmentSize
+    }
+
+    /// Sets the maximum attachment size in UserDefaults.
+    /// Call this when subscription status changes.
+    static func setMaxAttachmentSize(_ size: Int) {
+        UserDefaults.standard.set(size, forKey: maxAttachmentSizeKey)
+    }
 
     @Published var text = ""
     @Published var attachments = InputViewAttachments()
@@ -312,10 +329,10 @@ private extension InputViewModel {
 
             // Check file size limit
             if let file = attachments.file {
-                if file.fileData.count > Self.maxAttachmentSize {
+                if file.fileData.count > self.maxAttachmentSize {
                     await MainActor.run {
                         showActivityIndicator = false
-                        errorMessage = "File is too large. Maximum size is \(Self.maxAttachmentSize / 1024 / 1024)MB."
+                        errorMessage = "File is too large. Maximum size is \(self.maxAttachmentSize / 1024 / 1024)MB."
                     }
                     return
                 }
@@ -333,10 +350,10 @@ private extension InputViewModel {
                             }
                             return
                         }
-                        if data.count > Self.maxAttachmentSize {
+                        if data.count > self.maxAttachmentSize {
                             await MainActor.run {
                                 showActivityIndicator = false
-                                errorMessage = "Media is too large. Maximum size is \(Self.maxAttachmentSize / 1024 / 1024)MB."
+                                errorMessage = "Media is too large. Maximum size is \(self.maxAttachmentSize / 1024 / 1024)MB."
                             }
                             return
                         }

@@ -134,6 +134,8 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     var messageFont = UIFontMetrics.default.scaledFont(for: UIFont.systemFont(ofSize: 15))
     var availableInputs: [AvailableInputType] = [.text, .audio, .giphy, .media]
     var recorderSettings: RecorderSettings = RecorderSettings()
+    var showUpgradeOption: Bool = false
+    var onUpgradeRequested: (() -> Void)?
     var listSwipeActions: ListSwipeActions = ListSwipeActions()
     var keyboardDismissMode: UIScrollView.KeyboardDismissMode = .none
 
@@ -215,12 +217,18 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                 get: { inputViewModel.errorMessage != nil },
                 set: { if !$0 { inputViewModel.errorMessage = nil } }
             )) {
-                Button("OK", role: .cancel) {
+                if showUpgradeOption {
+                    Button("Upgrade to Pro") {
+                        inputViewModel.errorMessage = nil
+                        onUpgradeRequested?()
+                    }
+                }
+                Button(showUpgradeOption ? "Cancel" : "OK", role: .cancel) {
                     inputViewModel.errorMessage = nil
                 }
             } message: {
                 if let errorMessage = inputViewModel.errorMessage {
-                    Text(errorMessage)
+                    Text(showUpgradeOption ? "\(errorMessage)\n\nUpgrade to Pro for larger attachments." : errorMessage)
                 }
             }
 #if GIPHY_UISDK
@@ -464,7 +472,9 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
         }
         .sizeGetter($inputViewSize)
         .environmentObject(globalFocusState)
-        .onAppear(perform: inputViewModel.onStart)
+        .onAppear {
+            inputViewModel.onStart()
+        }
         .onDisappear(perform: inputViewModel.onStop)
     }
 
@@ -771,6 +781,19 @@ public extension ChatView {
     func setRecorderSettings(_ settings: RecorderSettings) -> ChatView {
         var view = self
         view.recorderSettings = settings
+        return view
+    }
+
+    /// Configures the upgrade option for attachment size limits.
+    ///
+    /// - Parameters:
+    ///   - show: Whether to show the upgrade option in the attachment too large alert.
+    ///   - onUpgrade: Closure called when user taps "Upgrade to Pro".
+    /// - Returns: A ChatView with upgrade option configured.
+    func attachmentUpgradeOption(show: Bool, onUpgrade: @escaping () -> Void) -> ChatView {
+        var view = self
+        view.showUpgradeOption = show
+        view.onUpgradeRequested = onUpgrade
         return view
     }
 
