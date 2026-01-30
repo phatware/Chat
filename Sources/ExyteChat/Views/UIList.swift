@@ -207,6 +207,11 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
         // outgoing messages to not appear until the user scrolled)
         if !splitInfo.insertOperations.isEmpty {
             //print("4 apply inserts", runID)
+
+            // Capture scroll position before insert - use a larger tolerance to account for
+            // content size changes (e.g., when a message is expanded)
+            let wasNearBottom = tableView.contentOffset.y <= scrollBottomTolerance * 4
+
             updateContextClosure(sections)
 
             tableView.beginUpdates()
@@ -220,14 +225,22 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
                 tableContentHeight = tableView.contentSize.height
             }
 
-            // After insert, check if we're actually at the bottom and update state
-            // This fixes the scroll button appearing incorrectly on first message
-            // or when new messages are added while already at bottom
-            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(350)) {
-                // Use tolerance to account for small scroll offsets during animations
-                let isAtBottom = tableView.contentOffset.y <= scrollBottomTolerance
-                if isAtBottom {
+            // After insert, scroll to bottom if we were near bottom before
+            // This ensures new messages are visible even if content size changed
+            // (e.g., due to message expansion)
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(100)) {
+                if wasNearBottom {
+                    // Scroll to bottom to show the new message
+                    if tableView.numberOfSections > 0, tableView.numberOfRows(inSection: 0) > 0 {
+                        tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .bottom, animated: true)
+                    }
                     self.isScrolledToBottom = true
+                } else {
+                    // Just update the state based on current position
+                    let isAtBottom = tableView.contentOffset.y <= scrollBottomTolerance
+                    if isAtBottom {
+                        self.isScrolledToBottom = true
+                    }
                 }
             }
         }
