@@ -27,6 +27,9 @@ final class ChatViewModel: ObservableObject {
 
     let inputFieldId = UUID()
 
+    /// Task for auto-clearing clipboard (cancellable on deinit)
+    private var clipboardClearTask: Task<Void, Never>?
+
     var didSendMessage: (DraftMessage) -> Void = {_ in }
     var didUpdateAttachmentStatus: (AttachmentUploadUpdate) -> Void = { _ in }
     var inputViewModel: InputViewModel?
@@ -82,7 +85,7 @@ final class ChatViewModel: ObservableObject {
         fileSharePresented = false
         fileToShare = nil
     }
-    
+
     func updateAttachmentStatus(_ uploadUpdate: AttachmentUploadUpdate) {
       didUpdateAttachmentStatus(uploadUpdate)
     }
@@ -100,26 +103,44 @@ final class ChatViewModel: ObservableObject {
     func messageMenuActionInternal(message: Message, action: DefaultMessageMenuAction) {
         switch action {
         case .copy:
+            // Cancel any previous clipboard clear task
+            clipboardClearTask?.cancel()
+
             // Check for image attachment first
             if let imageAttachment = message.attachments.first(where: { $0.type == .image }),
                let imageData = try? Data(contentsOf: imageAttachment.full),
                let image = UIImage(data: imageData) {
                 UIPasteboard.general.image = image
                 // Auto-clear clipboard after 120 seconds for security
-                DispatchQueue.main.asyncAfter(deadline: .now() + 120) {
-                    if UIPasteboard.general.image == image {
-                        UIPasteboard.general.image = nil
+                // Store PNG data for reliable comparison (UIImage == uses pointer comparison)
+                let copiedImageData = image.pngData()
+                clipboardClearTask = Task { [weak self] in
+                    try? await Task.sleep(nanoseconds: 120_000_000_000) // 120 seconds
+                    guard !Task.isCancelled else { return }
+                    await MainActor.run {
+                        // Compare image data, not pointer
+                        if let currentImage = UIPasteboard.general.image,
+                           let currentData = currentImage.pngData(),
+                           currentData == copiedImageData {
+                            UIPasteboard.general.image = nil
+                        }
                     }
+                    self?.clipboardClearTask = nil
                 }
             } else if !message.text.isEmpty {
                 // Fall back to copying text
                 let copiedText = message.text
                 UIPasteboard.general.string = copiedText
                 // Auto-clear clipboard after 120 seconds for security
-                DispatchQueue.main.asyncAfter(deadline: .now() + 120) {
-                    if UIPasteboard.general.string == copiedText {
-                        UIPasteboard.general.string = ""
+                clipboardClearTask = Task { [weak self] in
+                    try? await Task.sleep(nanoseconds: 120_000_000_000) // 120 seconds
+                    guard !Task.isCancelled else { return }
+                    await MainActor.run {
+                        if UIPasteboard.general.string == copiedText {
+                            UIPasteboard.general.string = ""
+                        }
                     }
+                    self?.clipboardClearTask = nil
                 }
             }
         case .reply:

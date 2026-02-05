@@ -69,12 +69,16 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
         tableView.isScrollEnabled = isScrollEnabled
         tableView.keyboardDismissMode = keyboardDismissMode
 
-        NotificationCenter.default.addObserver(forName: .onScrollToBottom, object: nil, queue: nil) { _ in
-            DispatchQueue.main.async {
-                if !context.coordinator.sections.isEmpty {
-                    guard tableView.numberOfSections > 0, tableView.numberOfRows(inSection: 0) > 0 else { return }
-                    tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .bottom, animated: true)
-                }
+        // Store observer token in coordinator for proper cleanup
+        context.coordinator.scrollToBottomObserver = NotificationCenter.default.addObserver(
+            forName: .onScrollToBottom,
+            object: nil,
+            queue: .main
+        ) { [weak tableView, weak coordinator = context.coordinator] _ in
+            guard let tableView = tableView, let coordinator = coordinator else { return }
+            if !coordinator.sections.isEmpty {
+                guard tableView.numberOfSections > 0, tableView.numberOfRows(inSection: 0) > 0 else { return }
+                tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .bottom, animated: true)
             }
         }
 
@@ -488,6 +492,15 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
             self.listSwipeActions = listSwipeActions
             self.keyboardDismissMode = keyboardDismissMode
         }
+
+        deinit {
+            if let observer = scrollToBottomObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
+        }
+
+        /// Observer token for scroll-to-bottom notification, removed in deinit
+        var scrollToBottomObserver: NSObjectProtocol?
 
         /// call pagination handler when this row is reached
         /// without this there is a bug: during new cells insertion willDisplay is called one extra time for the cell which used to be the last one while it is being updated (its position in group is changed from first to middle)
