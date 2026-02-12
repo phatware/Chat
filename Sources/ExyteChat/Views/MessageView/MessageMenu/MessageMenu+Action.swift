@@ -8,7 +8,7 @@ import SwiftUI
 public protocol MessageMenuAction: Equatable, CaseIterable {
     func title() -> String
     func icon() -> Image
-    
+
     static func menuItems(for message: Message) -> [Self]
 }
 
@@ -104,18 +104,18 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
         }
 
         // Check if message is in "sent" status (uploaded but no delivery notification)
-        // and is over 2 hours old - eligible for resend
+        // and is over 2 minutes old - eligible for resend
         let canResend: Bool
         if case .sent = message.status {
-            let twoHoursAgo = Date().addingTimeInterval(-2 * 60 * 60)
-            canResend = message.createdAt < twoHoursAgo
+            let twoMinutesAgo = Date().addingTimeInterval(-2 * 60)
+            canResend = message.createdAt < twoMinutesAgo
         } else {
             canResend = false
         }
 
         if message.user.isCurrentUser {
             // For messages with error status, show Retry instead of Reply
-            // For sent messages over 2h old, show Resend instead of Reply
+            // For sent messages over 2 min old, show Resend instead of Reply
             let replyOrRetryOrResend: DefaultMessageMenuAction
             if hasError {
                 replyOrRetryOrResend = .retry(retryClosure: {})
