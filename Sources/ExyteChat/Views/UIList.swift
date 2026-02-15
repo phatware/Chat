@@ -9,6 +9,7 @@ import SwiftUI
 
 public extension Notification.Name {
     static let onScrollToBottom = Notification.Name("onScrollToBottom")
+    static let onScrollToMessage = Notification.Name("onScrollToMessage")
 }
 
 private let scrollBottomTolerance = CGFloat(25)
@@ -79,6 +80,52 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
             if !coordinator.sections.isEmpty {
                 guard tableView.numberOfSections > 0, tableView.numberOfRows(inSection: 0) > 0 else { return }
                 tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .bottom, animated: true)
+            }
+        }
+
+        // Scroll-to-message observer for search navigation
+        context.coordinator.scrollToMessageObserver = NotificationCenter.default.addObserver(
+            forName: .onScrollToMessage,
+            object: nil,
+            queue: .main
+        ) { [weak tableView, weak coordinator = context.coordinator] notification in
+            guard let tableView = tableView, let coordinator = coordinator else { return }
+            guard let messageId = notification.userInfo?["messageId"] as? String else { return }
+
+            // Find the IndexPath for this message ID
+            for (sectionIndex, section) in coordinator.sections.enumerated() {
+                for (rowIndex, _) in section.rows.enumerated() {
+                    if section.rows[rowIndex].id == messageId {
+                        let indexPath = IndexPath(row: rowIndex, section: sectionIndex)
+
+                        // Validate the index path is within table bounds
+                        guard sectionIndex < tableView.numberOfSections,
+                              rowIndex < tableView.numberOfRows(inSection: sectionIndex) else { return }
+
+                        tableView.scrollToRow(at: indexPath, at: .middle, animated: true)
+
+                        // Brief highlight animation after scroll completes
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                            guard let cell = tableView.cellForRow(at: indexPath) else { return }
+                            let highlightView = UIView(frame: cell.bounds)
+                            highlightView.backgroundColor = UIColor.systemYellow.withAlphaComponent(0.0)
+                            highlightView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+                            highlightView.isUserInteractionEnabled = false
+                            cell.addSubview(highlightView)
+
+                            UIView.animate(withDuration: 0.3, animations: {
+                                highlightView.backgroundColor = UIColor.systemYellow.withAlphaComponent(0.3)
+                            }) { _ in
+                                UIView.animate(withDuration: 0.5, delay: 0.5, options: [], animations: {
+                                    highlightView.backgroundColor = UIColor.systemYellow.withAlphaComponent(0.0)
+                                }) { _ in
+                                    highlightView.removeFromSuperview()
+                                }
+                            }
+                        }
+                        return
+                    }
+                }
             }
         }
 
@@ -497,10 +544,15 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
             if let observer = scrollToBottomObserver {
                 NotificationCenter.default.removeObserver(observer)
             }
+            if let observer = scrollToMessageObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
         }
 
         /// Observer token for scroll-to-bottom notification, removed in deinit
         var scrollToBottomObserver: NSObjectProtocol?
+        /// Observer token for scroll-to-message notification, removed in deinit
+        var scrollToMessageObserver: NSObjectProtocol?
 
         /// call pagination handler when this row is reached
         /// without this there is a bug: during new cells insertion willDisplay is called one extra time for the cell which used to be the last one while it is being updated (its position in group is changed from first to middle)
