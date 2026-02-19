@@ -111,4 +111,9 @@ public struct Attachment: Codable, Identifiable, Hashable, Sendable {
     public var isVideoFile: Bool {
         type == .file && (mimeType?.hasPrefix("video/") ?? false)
     }
+
+    /// Check if this attachment is a GIF image (animated or static)
+    public var isGIF: Bool {
+        mimeType == "image/gif" || full.pathExtension.lowercased() == "gif"
+    }
 }

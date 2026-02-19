@@ -20,9 +20,10 @@ struct AttachmentsGrid: View {
 
     init(attachments: [Attachment], isCurrentUser: Bool,
          onTap: @escaping (_ attachment: Attachment, _ isCancel: Bool) -> Void) {
-        // Separate file attachments from media (image/video)
-        self.fileAttachments = attachments.filter { $0.type == .file }
-        self.mediaAttachments = attachments.filter { $0.type != .file }
+        // Separate file attachments from media (image/video/gif)
+        // GIF file attachments are treated as media so they display with animation in the image grid
+        self.fileAttachments = attachments.filter { $0.type == .file && !$0.isGIF }
+        self.mediaAttachments = attachments.filter { $0.type != .file || $0.isGIF }
 
         var toShow = mediaAttachments
 

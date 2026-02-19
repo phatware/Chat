@@ -52,6 +52,13 @@ final class ChatViewModel: ObservableObject {
             return
         }
 
+        // For GIF file attachments, show fullscreen animated viewer
+        if attachment.isGIF {
+            fullscreenAttachmentItem = attachment
+            fullscreenAttachmentPresented = true
+            return
+        }
+
         // For regular files, show share sheet instead of fullscreen viewer
         if attachment.type == .file {
             presentFileShare(attachment)

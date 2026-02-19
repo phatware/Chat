@@ -12,7 +12,13 @@ struct AttachmentsPage: View {
     let attachment: Attachment
 
     var body: some View {
-        if attachment.type == .image {
+        if attachment.isGIF {
+            AnimatedGIFView(
+                url: attachment.full,
+                cacheKey: attachment.fullCacheKey,
+                contentMode: .scaleAspectFit
+            )
+        } else if attachment.type == .image {
             CachedAsyncImage(
                 url: attachment.full,
                 cacheKey: attachment.fullCacheKey

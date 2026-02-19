@@ -25,7 +25,7 @@ public struct AttachmentCell: View {
 
     public var body: some View {
         Group {
-            if attachment.type == .image {
+            if attachment.type == .image || attachment.isGIF {
                 ZStack {
                     content
                     if let status = attachment.fullUploadStatus {
@@ -96,13 +96,13 @@ public struct AttachmentCell: View {
                     }
             }
         }
-        .applyIf(attachment.type != .file) {
+        .applyIf(attachment.type != .file || attachment.isGIF) {
             $0.frame(width: size.width, height: size.height)
         }
         .contentShape(Rectangle())
-        .applyIf(attachment.type != .file) {
-            // Only add tap gesture for non-file attachments
-            // FileAttachmentView handles its own tap gesture
+        .applyIf(attachment.type != .file || attachment.isGIF) {
+            // Only add tap gesture for non-file attachments (and GIF files treated as images)
+            // Other FileAttachmentView types handle their own tap gesture
             $0.simultaneousGesture(attachmentTapGesture)
         }
     }
@@ -201,21 +201,30 @@ struct AsyncImageView: View {
     let size: CGSize
 
     var body: some View {
-        CachedAsyncImage(
-            url: attachment.thumbnail,
-            cacheKey: attachment.thumbnailCacheKey
-        ) { imageView in
-            imageView
-                .resizable()
-                .scaledToFill()
-                .frame(width: size.width, height: size.height)
-                .clipped()
-        } placeholder: {
-            ZStack {
-                Rectangle()
-                    .foregroundColor(theme.colors.inputBG)
+        if attachment.isGIF {
+            AnimatedGIFView(
+                url: attachment.thumbnail,
+                cacheKey: attachment.thumbnailCacheKey,
+                contentMode: .scaleAspectFill
+            )
+            .frame(width: size.width, height: size.height)
+        } else {
+            CachedAsyncImage(
+                url: attachment.thumbnail,
+                cacheKey: attachment.thumbnailCacheKey
+            ) { imageView in
+                imageView
+                    .resizable()
+                    .scaledToFill()
                     .frame(width: size.width, height: size.height)
-                ActivityIndicator(size: 30, showBackground: false)
+                    .clipped()
+            } placeholder: {
+                ZStack {
+                    Rectangle()
+                        .foregroundColor(theme.colors.inputBG)
+                        .frame(width: size.width, height: size.height)
+                    ActivityIndicator(size: 30, showBackground: false)
+                }
             }
         }
     }
