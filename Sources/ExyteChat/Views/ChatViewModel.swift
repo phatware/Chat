@@ -16,6 +16,9 @@ final class ChatViewModel: ObservableObject {
     @Published var fileToShare: URL?
     @Published var fileSharePresented = false
 
+    @Published var fileToPreview: URL?
+    @Published var filePreviewPresented = false
+
     @Published var messageMenuRow: MessageRow?
 
     /// The messages frame that is currently being rendered in the Message Menu
@@ -59,9 +62,9 @@ final class ChatViewModel: ObservableObject {
             return
         }
 
-        // For regular files, show share sheet instead of fullscreen viewer
+        // For regular files, show QuickLook preview if supported, otherwise share sheet
         if attachment.type == .file {
-            presentFileShare(attachment)
+            presentFilePreviewOrShare(attachment)
             return
         }
         fullscreenAttachmentItem = attachment
@@ -91,6 +94,21 @@ final class ChatViewModel: ObservableObject {
     func dismissFileShare() {
         fileSharePresented = false
         fileToShare = nil
+    }
+
+    func presentFilePreviewOrShare(_ attachment: Attachment) {
+        let url = attachment.full
+        if QuickLookPreview.canPreview(url) {
+            fileToPreview = url
+            filePreviewPresented = true
+        } else {
+            presentFileShare(attachment)
+        }
+    }
+
+    func dismissFilePreview() {
+        filePreviewPresented = false
+        fileToPreview = nil
     }
 
     func updateAttachmentStatus(_ uploadUpdate: AttachmentUploadUpdate) {

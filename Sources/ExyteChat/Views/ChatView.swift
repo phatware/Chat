@@ -213,6 +213,14 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                     })
                 }
             }
+            .sheet(isPresented: $viewModel.filePreviewPresented) {
+                if let fileURL = viewModel.fileToPreview {
+                    QuickLookPreview(url: fileURL, onDismiss: {
+                        viewModel.dismissFilePreview()
+                    })
+                    .ignoresSafeArea()
+                }
+            }
             .alert("Attachment Too Large", isPresented: Binding(
                 get: { inputViewModel.errorMessage != nil },
                 set: { if !$0 { inputViewModel.errorMessage = nil } }
