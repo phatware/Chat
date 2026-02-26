@@ -194,6 +194,9 @@ final class ChatViewModel: ObservableObject {
         case .delete:
             // Delete action is handled by the app via onMessageMenuAction closure
             break
+        case .translate:
+            // Translate action is handeled by the app
+            break
         }
     }
 }

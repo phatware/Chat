@@ -26,6 +26,7 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
     case resend(resendClosure: @Sendable () -> Void)
     case edit(saveClosure: @Sendable (String) -> Void)
     case share
+    case translate
     case delete
 
     public func title() -> String {
@@ -42,6 +43,8 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
             "Edit"
         case .share:
             "Share"
+        case .translate:
+            "Translate"
         case .delete:
             "Delete"
         }
@@ -65,6 +68,8 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
             }
         case .share:
             Image(systemName: "square.and.arrow.up")
+        case .translate:
+            Image(systemName: "translate")
         case .delete:
             Image(systemName: "trash")
         }
@@ -78,6 +83,7 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
              (.resend(_), .resend(_)),
              (.edit(_), .edit(_)),
              (.share, .share),
+             (.translate, .translate),
              (.delete, .delete):
             return true
         default:
@@ -86,7 +92,7 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
     }
 
     public static let allCases: [DefaultMessageMenuAction] = [
-        .copy, .reply, .edit(saveClosure: {_ in}), .delete
+        .copy, .reply, .edit(saveClosure: {_ in}), .translate, .delete
     ]
 
     static public func menuItems(for message: Message) -> [DefaultMessageMenuAction] {
@@ -142,11 +148,12 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
                 if hasError || canResend {
                     return [.copy, replyOrRetryOrResend, .delete]
                 } else {
-                    return allCases
+                    return allCases  // includes .translate
                 }
             }
         } else {
             // Peer's messages: no edit, no retry (only current user's messages can be retried)
+            let hasText = !message.text.isEmpty
             if hasFileAttachment {
                 // Files (including video files): no copy, add share
                 return [.share, .reply, .delete]
@@ -157,8 +164,8 @@ public enum DefaultMessageMenuAction: MessageMenuAction, Sendable {
                 // Recordings: add share
                 return [.share, .reply, .delete]
             } else {
-                // Text or images: allow copy
-                return [.copy, .reply, .delete]
+                // Text or image: allow copy; add translate when there is text
+                return hasText ? [.copy, .reply, .translate, .delete] : [.copy, .reply, .delete]
             }
         }
     }

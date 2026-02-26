@@ -601,6 +601,7 @@ struct InputView: View {
         } label: {
             theme.images.recordAudio.playRecord
         }
+        .foregroundColor(theme.colors.sendButtonBackground)
     }
 
     var pauseRecordButton: some View {
@@ -609,6 +610,7 @@ struct InputView: View {
         } label: {
             theme.images.recordAudio.pauseRecord
         }
+        .foregroundColor(theme.colors.sendButtonBackground)
     }
 
     @ViewBuilder
