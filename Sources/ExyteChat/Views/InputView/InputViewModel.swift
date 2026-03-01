@@ -84,10 +84,13 @@ final class InputViewModel: ObservableObject {
     }
 
     func send() {
+        // Capture and clear text immediately for responsive UI
+        let capturedText = text
+        text = ""
         Task {
             await recorder.stopRecording()
             await recordingPlayer?.reset()
-            sendMessage()
+            sendMessage(text: capturedText)
         }
     }
 
@@ -288,13 +291,13 @@ private extension InputViewModel {
 
 private extension InputViewModel {
 
-    func sendMessage() {
+    func sendMessage(text messageText: String) {
         showActivityIndicator = true
         print("[InputViewModel] sendMessage called")
 
         Task {
             // Check for empty content - nothing to send
-            let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let hasText = !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             let hasMedia = !attachments.medias.isEmpty
             let hasFile = attachments.file != nil && attachments.file!.fileData.count > 0
             let hasRecording = attachments.recording != nil && attachments.recording!.duration > 0
@@ -313,6 +316,7 @@ private extension InputViewModel {
             if let file = attachments.file, file.fileData.isEmpty {
                 await MainActor.run {
                     showActivityIndicator = false
+                    self.text = messageText // Restore text on error
                     errorMessage = "Cannot send empty file."
                 }
                 return
@@ -322,6 +326,7 @@ private extension InputViewModel {
             if let recording = attachments.recording, recording.duration <= 0 {
                 await MainActor.run {
                     showActivityIndicator = false
+                    self.text = messageText // Restore text on error
                     errorMessage = "Recording is empty. Please record audio first."
                 }
                 return
@@ -332,6 +337,7 @@ private extension InputViewModel {
                 if file.fileData.count > self.maxAttachmentSize {
                     await MainActor.run {
                         showActivityIndicator = false
+                        self.text = messageText // Restore text on error
                         errorMessage = "File is too large. Maximum size is \(self.maxAttachmentSize / 1024 / 1024)MB."
                     }
                     return
@@ -346,6 +352,7 @@ private extension InputViewModel {
                         if data.count == 0 {
                             await MainActor.run {
                                 showActivityIndicator = false
+                                self.text = messageText // Restore text on error
                                 errorMessage = "Cannot send empty media."
                             }
                             return
@@ -353,6 +360,7 @@ private extension InputViewModel {
                         if data.count > self.maxAttachmentSize {
                             await MainActor.run {
                                 showActivityIndicator = false
+                                self.text = messageText // Restore text on error
                                 errorMessage = "Media is too large. Maximum size is \(self.maxAttachmentSize / 1024 / 1024)MB."
                             }
                             return
@@ -366,7 +374,7 @@ private extension InputViewModel {
             await MainActor.run {
 #if GIPHY_UISDK
                 let draft = DraftMessage(
-                    text: self.text,
+                    text: messageText,
                     medias: attachments.medias,
                     giphyMedia: attachments.giphyMedia,
                     recording: attachments.recording,
@@ -376,7 +384,7 @@ private extension InputViewModel {
                 )
 #else
                 let draft = DraftMessage(
-                    text: self.text,
+                    text: messageText,
                     medias: attachments.medias,
                     recording: attachments.recording,
                     replyMessage: attachments.replyMessage,
