@@ -5,6 +5,10 @@
 import Foundation
 import SwiftUI
 
+#if canImport(UIKit)
+import UIKit
+#endif
+
 struct FullscreenMediaPages: View {
 
     @Environment(\.chatTheme) private var theme
@@ -12,6 +16,14 @@ struct FullscreenMediaPages: View {
     @StateObject var viewModel: FullscreenMediaPagesViewModel
     var safeAreaInsets: EdgeInsets
     var onClose: () -> Void
+
+    private var isPad: Bool {
+#if canImport(UIKit)
+        UIDevice.current.userInterfaceIdiom == .pad
+#else
+        false
+#endif
+    }
 
     var body: some View {
         let closeGesture = DragGesture()
@@ -102,20 +114,35 @@ struct FullscreenMediaPages: View {
             }
         }
         .overlay(alignment: .topLeading) {
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(width: 32, height: 32)
-                    .background(Circle().fill(Color.black.opacity(0.5)))
+            if !isPad {
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(Color.black.opacity(0.5)))
+                }
+                .padding(.leading, 15)
+                .offset(y: safeAreaInsets.top + 5)
             }
-            .padding(.leading, 15)
-            .offset(y: safeAreaInsets.top + 5)
+        }
+        .overlay(alignment: .topTrailing) {
+            if isPad {
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(Color.black.opacity(0.5)))
+                }
+                .padding(.trailing, 15)
+                .offset(y: safeAreaInsets.top + 5)
+            }
         }
         .overlay(alignment: .topTrailing) {
             let currentAttachment = viewModel.attachments[viewModel.index]
             if viewModel.showMinis, (currentAttachment.type == .video || currentAttachment.isVideoFile) {
-                HStack(spacing: 20) {
+                HStack(spacing: 10) {
                     (viewModel.videoPlaying ? theme.images.fullscreenMedia.pause : theme.images.fullscreenMedia.play)
                         .resizable()
                         .scaledToFit()
@@ -137,7 +164,9 @@ struct FullscreenMediaPages: View {
                         }
                 }
                 .foregroundColor(.white)
-                .padding(.horizontal, 10)
+                .padding(.top, 5)
+                .padding(.leading, 10)
+                .padding(.trailing, isPad ? 60 : 10)
                 .offset(y: safeAreaInsets.top)
             }
         }
