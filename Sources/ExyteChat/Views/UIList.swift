@@ -104,17 +104,24 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
 
                         tableView.scrollToRow(at: indexPath, at: .middle, animated: true)
 
+                        // Pick the highlight color to match the bubble background
                         // Brief highlight animation after scroll completes
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                             guard let cell = tableView.cellForRow(at: indexPath) else { return }
-                            let highlightView = UIView(frame: cell.bounds)
+                            // The table has a π rotation so local +y is visually upward.
+                            // Move origin 1px in local -y (visually down) and trim 3px from height
+                            // so the overlay sits at the visual bottom of the bubble.
+                            var highlightFrame = cell.bounds
+                            highlightFrame.origin.y -= 2
+                            highlightFrame.size.height -= 1
+                            let highlightView = UIView(frame: highlightFrame)
                             highlightView.backgroundColor = UIColor.systemYellow.withAlphaComponent(0.0)
                             highlightView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
                             highlightView.isUserInteractionEnabled = false
                             cell.addSubview(highlightView)
 
                             UIView.animate(withDuration: 0.3, animations: {
-                                highlightView.backgroundColor = UIColor.systemYellow.withAlphaComponent(0.3)
+                                highlightView.backgroundColor = UIColor.systemYellow.withAlphaComponent(0.25)
                             }) { _ in
                                 UIView.animate(withDuration: 0.5, delay: 0.5, options: [], animations: {
                                     highlightView.backgroundColor = UIColor.systemYellow.withAlphaComponent(0.0)
