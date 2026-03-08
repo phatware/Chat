@@ -5,6 +5,7 @@
 import Foundation
 import Combine
 import ExyteMediaPicker
+import UIKit
 
 @MainActor
 final class InputViewModel: ObservableObject {
@@ -105,6 +106,39 @@ final class InputViewModel: ObservableObject {
         showFilePicker = false
         validateDraft()
         print("[InputViewModel] After setFile - state: \(state), file attached: \(attachments.file != nil)")
+    }
+
+    /// Handle an image pasted from the clipboard.
+    func handlePastedImage(_ image: UIImage) {
+        guard let data = image.jpegData(compressionQuality: 0.85) else { return }
+        let file = DraftFile(
+            fileName: "pasted_image.jpg",
+            fileData: data,
+            mimeType: "image/jpeg"
+        )
+        setFile(file)
+    }
+
+    /// Handle video data pasted from the clipboard.
+    func handlePastedVideo(_ data: Data, fileName: String) {
+        let ext = fileName.split(separator: ".").last?.lowercased() ?? "mp4"
+        let mime = ext == "mov" ? "video/quicktime" : "video/mp4"
+        let file = DraftFile(
+            fileName: fileName,
+            fileData: data,
+            mimeType: mime
+        )
+        setFile(file)
+    }
+
+    /// Handle file data pasted from the clipboard.
+    func handlePastedFile(_ data: Data, fileName: String, mimeType: String) {
+        let file = DraftFile(
+            fileName: fileName,
+            fileData: data,
+            mimeType: mimeType
+        )
+        setFile(file)
     }
 
     func inputViewAction() -> (InputViewAction) -> Void {

@@ -173,7 +173,16 @@ struct InputView: View {
                     inputFieldId: inputFieldId,
                     style: style,
                     availableInputs: availableInputs,
-                    localization: localization
+                    localization: localization,
+                    onPasteImage: { image in
+                        viewModel.handlePastedImage(image)
+                    },
+                    onPasteVideo: { data, fileName in
+                        viewModel.handlePastedVideo(data, fileName: fileName)
+                    },
+                    onPasteFileData: { data, name, mime in
+                        viewModel.handlePastedFile(data, fileName: name, mimeType: mime)
+                    }
                 )
             }
         }
@@ -334,9 +343,19 @@ struct InputView: View {
                 .frame(height: 2)
 
             HStack(spacing: 12) {
-                Image(systemName: fileIcon(for: file.fileName))
-                    .font(.system(size: 24))
-                    .foregroundColor(theme.colors.mainTint)
+                // Show image thumbnail for image files, icon otherwise
+                if isImageFile(file.fileName),
+                   let uiImage = UIImage(data: file.fileData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 44, height: 44)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                } else {
+                    Image(systemName: fileIcon(for: file.fileName))
+                        .font(.system(size: 24))
+                        .foregroundColor(theme.colors.mainTint)
+                }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(file.fileName)
@@ -379,6 +398,11 @@ struct InputView: View {
         case "png", "jpg", "jpeg", "gif", "heic", "webp": return "photo.fill"
         default: return "doc.fill"
         }
+    }
+
+    private func isImageFile(_ fileName: String) -> Bool {
+        let ext = fileName.split(separator: ".").last?.lowercased() ?? ""
+        return ["png", "jpg", "jpeg", "gif", "heic", "webp", "tiff", "bmp"].contains(ext)
     }
 
     private func formatFileSize(_ bytes: Int) -> String {
