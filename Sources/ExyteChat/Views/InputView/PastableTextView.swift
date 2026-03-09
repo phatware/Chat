@@ -17,12 +17,16 @@ final class PasteInterceptingTextView: UITextView {
     var onPasteImage: ((UIImage) -> Void)?
     var onPasteVideo: ((Data, String) -> Void)?
     var onPasteFileData: ((Data, String, String) -> Void)?
+    var maxHeight: CGFloat = 120
 
     override var intrinsicContentSize: CGSize {
-        // Size to fit current text, clamped to a reasonable max
         let fixedWidth = bounds.width > 0 ? bounds.width : 250
         let size = sizeThatFits(CGSize(width: fixedWidth, height: .greatestFiniteMagnitude))
-        return CGSize(width: UIView.noIntrinsicMetric, height: size.height)
+        let exceedsMax = size.height > maxHeight
+        if exceedsMax != isScrollEnabled {
+            isScrollEnabled = exceedsMax
+        }
+        return CGSize(width: UIView.noIntrinsicMetric, height: min(size.height, maxHeight))
     }
 
     override func layoutSubviews() {
@@ -82,6 +86,7 @@ struct PastableTextView: UIViewRepresentable {
     var textColor: UIColor
     var placeholderColor: UIColor
     var font: UIFont
+    var maxHeight: CGFloat
     var isFocused: Bool
     var onFocusChange: ((Bool) -> Void)?
     var onPasteImage: ((UIImage) -> Void)?
@@ -99,6 +104,7 @@ struct PastableTextView: UIViewRepresentable {
         tv.textColor = textColor
         tv.backgroundColor = .clear
         tv.isScrollEnabled = false
+        tv.maxHeight = maxHeight
         tv.textContainerInset = UIEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
         tv.textContainer.lineFragmentPadding = 0
         tv.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -134,6 +140,7 @@ struct PastableTextView: UIViewRepresentable {
         }
         tv.textColor = textColor
         tv.font = font
+        tv.maxHeight = maxHeight
         context.coordinator.placeholderLabel?.isHidden = !text.isEmpty
 
         // Sync callbacks

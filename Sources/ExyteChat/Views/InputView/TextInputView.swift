@@ -27,6 +27,7 @@ struct TextInputView: View {
             textColor: UIColor(style == .message ? theme.colors.inputText : theme.colors.inputSignatureText),
             placeholderColor: UIColor(style == .message ? theme.colors.inputPlaceholderText : theme.colors.inputSignaturePlaceholderText),
             font: .preferredFont(forTextStyle: .body),
+            maxHeight: 120,
             isFocused: globalFocusState.focus == .uuid(inputFieldId),
             onFocusChange: { focused in
                 if focused {
