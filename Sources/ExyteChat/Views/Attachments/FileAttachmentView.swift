@@ -28,26 +28,17 @@ public struct FileAttachmentView: View {
                 Text(fileName)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundColor(theme.colors.mainText)
                     .lineLimit(2)
 
                 Text(fileExtension.uppercased())
                     .font(.caption2)
-                    .foregroundColor(theme.colors.mainCaptionText)
+                    .opacity(0.7)
             }
 
             Spacer()
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(white: 0.96))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color(white: 0.9), lineWidth: 1)
-        )
         .contentShape(Rectangle())
         .onTapGesture {
             onTap?()

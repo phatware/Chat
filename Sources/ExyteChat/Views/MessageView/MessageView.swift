@@ -29,7 +29,6 @@ struct MessageView: View {
     @State var avatarViewSize: CGSize = .zero
     @State var statusSize: CGSize = .zero
     @State var giphyAspectRatio: CGFloat = 1
-    @State var timeSize: CGSize = .zero
     @State var messageSize: CGSize = .zero
 
     // The size of our reaction bubbles are based on the users font size,
@@ -45,45 +44,33 @@ struct MessageView: View {
     static let statusViewSize: CGFloat = 10
     static let horizontalStatusPadding: CGFloat = horizontalScreenEdgePadding / 2
     static let horizontalBubblePadding: CGFloat = 70
-
-    enum DateArrangement {
-        case hstack, vstack, overlay
-    }
+    static let textTimestampTrailingInset: CGFloat = 8
 
     var additionalMediaInset: CGFloat {
         message.attachments.count > 1 ? MessageView.attachmentPadding * 2 : 0
     }
 
-    var dateArrangement: DateArrangement {
-        let timeWidth = timeSize.width + 10
-        let textPaddings = MessageView.horizontalTextPadding * 2
-        let widthWithoutMedia =
-            UIScreen.main.bounds.width
-            - (message.user.isCurrentUser
-                ? MessageView.horizontalNoAvatarPadding : MessageView.horizontalScreenEdgePadding)
-            - statusSize.width
-            - MessageView.horizontalBubblePadding
-            - textPaddings
+    private var shouldStackTimeBelowText: Bool {
+        !message.text.styled(using: messageStyler).urls.isEmpty && messageLinkPreviewLimit > 0
+    }
 
-        let maxWidth =
-            message.attachments.isEmpty
-            ? widthWithoutMedia : MessageView.widthWithMedia - textPaddings
-        let styledText = message.text.styled(using: messageStyler)
+    private var trailingTimestampReservationText: Text? {
+        guard showMessageTimeView else { return nil }
 
-        let finalWidth = styledText.width(withConstrainedWidth: maxWidth, font: font)
-        let lastLineWidth = styledText.lastLineWidth(labelWidth: maxWidth, font: font)
-        let numberOfLines = styledText.numberOfLines(labelWidth: maxWidth, font: font)
+        var reservation = Text(" \(message.time)")
+            .font(.caption)
 
-        if !styledText.urls.isEmpty && messageLinkPreviewLimit > 0 {
-            return .vstack
+        if message.expiresAt != nil {
+            reservation = reservation
+                + Text(" ")
+                    .font(.caption)
+                + Text(Image(systemName: "timer"))
+                    .font(.system(size: 9))
+                + Text(" 88:88m")
+                    .font(.caption)
         }
-        if numberOfLines == 1, finalWidth + CGFloat(timeWidth) < maxWidth {
-            return .hstack
-        }
-        if lastLineWidth + CGFloat(timeWidth) < finalWidth {
-            return .overlay
-        }
-        return .vstack
+
+        return reservation
     }
 
     var showAvatar: Bool {
@@ -137,7 +124,7 @@ struct MessageView: View {
             message.user.isCurrentUser ? .leading : .trailing, MessageView.horizontalBubblePadding
         )
         .frame(
-            maxWidth: UIScreen.main.bounds.width,
+            maxWidth: .infinity,
             alignment: message.user.isCurrentUser ? .trailing : .leading)
     }
 
@@ -161,6 +148,15 @@ struct MessageView: View {
 #endif
                 if !message.attachments.isEmpty {
                     attachmentsView(message)
+                }
+
+                if !message.attachments.isEmpty && message.text.isEmpty
+                    && message.attachments.allSatisfy({ $0.type == .file })
+                {
+                    messageTimeView()
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 8)
                 }
 
                 if !message.text.isEmpty {
@@ -202,8 +198,9 @@ struct MessageView: View {
                 MessageTextView(
                     text: message.text, messageStyler: messageStyler,
                     userType: message.user.type, shouldShowLinkPreview: shouldShowLinkPreview,
-                    messageLinkPreviewLimit: messageLinkPreviewLimit
+                    messageLinkPreviewLimit: messageLinkPreviewLimit, trailingReservedText: nil
                 )
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, MessageView.horizontalTextPadding)
             }
 
@@ -267,7 +264,7 @@ struct MessageView: View {
                 .padding(.horizontal, MessageView.attachmentPadding)
         }
         .overlay(alignment: .bottomTrailing) {
-            if message.text.isEmpty {
+            if message.text.isEmpty && !message.attachments.allSatisfy({ $0.type == .file }) {
                 messageTimeView(needsCapsule: true)
                     .padding(4)
             }
@@ -288,37 +285,32 @@ struct MessageView: View {
         let messageView = MessageTextView(
             text: message.text, messageStyler: messageStyler,
             userType: message.user.type, shouldShowLinkPreview: shouldShowLinkPreview,
-            messageLinkPreviewLimit: messageLinkPreviewLimit
+            messageLinkPreviewLimit: messageLinkPreviewLimit,
+            trailingReservedText: shouldStackTimeBelowText ? nil : trailingTimestampReservationText
         )
         .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, MessageView.horizontalTextPadding)
 
-        let timeView = messageTimeView()
+        let inlineTimeView = messageTimeView()
+            .padding(.vertical, 6)
+            .padding(.trailing, MessageView.textTimestampTrailingInset)
+
+        let stackedTimeView = messageTimeView()
             .padding(.horizontal, 12)
+            .padding(.trailing, MessageView.textTimestampTrailingInset)
 
         Group {
-            switch dateArrangement {
-            case .hstack:
-                HStack(alignment: .lastTextBaseline, spacing: 12) {
-                    messageView
-                    if !message.attachments.isEmpty {
-                        Spacer()
-                    }
-                    timeView
-                }
-                .padding(.vertical, 8)
-            case .vstack:
+            if shouldStackTimeBelowText {
                 VStack(alignment: .trailing, spacing: 4) {
                     messageView
-                    timeView
+                    stackedTimeView
                 }
-                .padding(.vertical, 8)
-            case .overlay:
+                .padding(.vertical, 6)
+            } else {
                 messageView
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 6)
                     .overlay(alignment: .bottomTrailing) {
-                        timeView
-                            .padding(.vertical, 8)
+                        inlineTimeView
                     }
             }
         }
@@ -352,7 +344,6 @@ struct MessageView: View {
                 }
             }
         }
-        .sizeGetter($timeSize)
     }
 }
 

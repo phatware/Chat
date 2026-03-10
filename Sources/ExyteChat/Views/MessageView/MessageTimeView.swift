@@ -16,11 +16,14 @@ struct MessageTimeView: View {
             Text(text)
                 .font(.caption)
                 .foregroundColor(chatTheme.colors.messageTimeText(userType))
+                .lineLimit(1)
 
             if let expiresAt = expiresAt {
                 ExpirationCountdownView(expiresAt: expiresAt)
             }
         }
+        .lineLimit(1)
+        .fixedSize(horizontal: true, vertical: false)
     }
 }
 
@@ -37,10 +40,14 @@ struct ExpirationCountdownView: View {
                 HStack(spacing: 2) {
                     Image(systemName: "timer")
                         .font(.system(size: 9))
+                        .imageScale(.small)
                     Text(formatRemaining(remaining))
                         .font(.caption)
+                        .lineLimit(1)
                 }
                 .foregroundColor(.red)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
             }
         }
     }
@@ -78,11 +85,14 @@ struct MessageTimeWithCapsuleView: View {
                 .font(.caption)
                 .foregroundColor(.white)
                 .opacity(0.8)
+                .lineLimit(1)
 
             if let expiresAt = expiresAt {
                 ExpirationCountdownView(expiresAt: expiresAt)
             }
         }
+        .lineLimit(1)
+        .fixedSize(horizontal: true, vertical: false)
         .padding(.top, 4)
         .padding(.bottom, 4)
         .padding(.horizontal, 8)

@@ -1,6 +1,6 @@
 //
 //  SwiftUIView.swift
-//  
+//
 //
 //  Created by Alex.M on 07.07.2022.
 //
@@ -29,6 +29,7 @@ struct MessageTextView: View {
     let userType: UserType
     let shouldShowLinkPreview: (URL) -> Bool
     let messageLinkPreviewLimit: Int
+    let trailingReservedText: Text?
 
     /// Whether the text exceeds the truncation limit
     private var shouldTruncate: Bool {
@@ -60,12 +61,20 @@ struct MessageTextView: View {
         Array(styledText.urls.filter(shouldShowLinkPreview).prefix(messageLinkPreviewLimit))
     }
 
+    private var renderedText: Text {
+        if let trailingReservedText {
+            return Text("\(Text(styledText))\(trailingReservedText.foregroundColor(.clear))")
+        }
+        return Text(styledText)
+    }
+
     var body: some View {
         if !styledText.characters.isEmpty {
             VStack(alignment: .leading) {
-                Text(styledText)
+                renderedText
                     .sizeGetter($textSize)
                     .contentShape(Rectangle())
+                    .accessibilityLabel(displayText)
                     .onTapGesture {
                         if shouldTruncate {
                             withAnimation(.easeInOut(duration: 0.2)) {
@@ -93,19 +102,19 @@ struct MessageTextView_Previews: PreviewProvider {
         MessageTextView(
             text: "Look at [this website](https://example.org)",
             messageStyler: AttributedString.init, userType: .other,
-            shouldShowLinkPreview: { _ in true }, messageLinkPreviewLimit: 8)
+            shouldShowLinkPreview: { _ in true }, messageLinkPreviewLimit: 8, trailingReservedText: nil)
         MessageTextView(
             text: "Look at [this website](https://example.org)",
             messageStyler: String.markdownStyler, userType: .other,
-            shouldShowLinkPreview: { _ in true }, messageLinkPreviewLimit: 8)
+            shouldShowLinkPreview: { _ in true }, messageLinkPreviewLimit: 8, trailingReservedText: nil)
         MessageTextView(
             text: "[@Dan](mention://user/123456789) look at [this website](https://example.org)!",
             messageStyler: String.markdownStyler, userType: .other,
-            shouldShowLinkPreview: { $0.scheme != "mention" }, messageLinkPreviewLimit: 8)
+            shouldShowLinkPreview: { $0.scheme != "mention" }, messageLinkPreviewLimit: 8, trailingReservedText: nil)
         // Long text preview - should show truncated with "..." and expand on tap
         MessageTextView(
             text: "This is a very long message that exceeds the 300 character limit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
             messageStyler: AttributedString.init, userType: .other,
-            shouldShowLinkPreview: { _ in true }, messageLinkPreviewLimit: 8)
+            shouldShowLinkPreview: { _ in true }, messageLinkPreviewLimit: 8, trailingReservedText: nil)
     }
 }

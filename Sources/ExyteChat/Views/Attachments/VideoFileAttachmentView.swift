@@ -28,7 +28,7 @@ public struct VideoFileAttachmentView: View {
             // Thumbnail or fallback icon
             thumbnailView
                 .frame(width: 60, height: 60)
-                .background(Color(white: 0.92))
+                .background(Color.primary.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
             // File info
@@ -36,12 +36,11 @@ public struct VideoFileAttachmentView: View {
                 Text(attachment.fileName ?? "Video")
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundColor(theme.colors.mainText)
                     .lineLimit(2)
 
                 Text(fileExtension.uppercased())
                     .font(.caption2)
-                    .foregroundColor(theme.colors.mainCaptionText)
+                    .opacity(0.7)
             }
             .padding(.leading, 12)
 
@@ -49,14 +48,6 @@ public struct VideoFileAttachmentView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(white: 0.96))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color(white: 0.9), lineWidth: 1)
-        )
         .contentShape(Rectangle())
         .onTapGesture {
             onTap?()

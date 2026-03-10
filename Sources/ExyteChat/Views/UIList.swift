@@ -142,6 +142,23 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
             }
         }
 
+        // On devices where rotation doesn't change the horizontal size class (e.g. iPhone Pro),
+        // SwiftUI won't propagate an environment change to UIHostingConfiguration cells, so they
+        // keep their old portrait layout. Force-reload on interface orientation change to ensure
+        // all cells re-render with the correct dimensions.
+        context.coordinator.orientationObserver = NotificationCenter.default.addObserver(
+            forName: UIDevice.orientationDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak tableView] _ in
+            let orientation = UIDevice.current.orientation
+            guard orientation.isPortrait || orientation.isLandscape else { return }
+            guard let tableView else { return }
+            UIView.performWithoutAnimation {
+                tableView.reloadData()
+            }
+        }
+
         return tableView
     }
 
@@ -554,12 +571,17 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
             if let observer = scrollToMessageObserver {
                 NotificationCenter.default.removeObserver(observer)
             }
+            if let observer = orientationObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
         }
 
         /// Observer token for scroll-to-bottom notification, removed in deinit
         var scrollToBottomObserver: NSObjectProtocol?
         /// Observer token for scroll-to-message notification, removed in deinit
         var scrollToMessageObserver: NSObjectProtocol?
+        /// Observer token for device orientation change, removed in deinit
+        var orientationObserver: NSObjectProtocol?
 
         /// call pagination handler when this row is reached
         /// without this there is a bug: during new cells insertion willDisplay is called one extra time for the cell which used to be the last one while it is being updated (its position in group is changed from first to middle)
