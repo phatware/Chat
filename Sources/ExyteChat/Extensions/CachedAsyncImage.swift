@@ -73,7 +73,23 @@ public struct CachedAsyncImage<Content>: View where Content: View {
         self.scale = scale
         self.transaction = transaction
         self.content = content
-        self._phase = State(wrappedValue: .empty)
+
+        // Synchronously check the in-memory cache so that when a cell is
+        // reconfigured (e.g. on message status change) the image is never
+        // replaced with a placeholder flash before the async load completes.
+        // Only the memory store is queried here — disk I/O must stay async.
+        var initialPhase: AsyncImagePhase = .empty
+        if let url = url {
+            let key = cacheKey ?? url.absoluteString
+            if let cached = ImageCache.default.retrieveImageInMemoryCache(forKey: key) {
+                #if canImport(UIKit)
+                initialPhase = .success(Image(uiImage: cached))
+                #elseif canImport(AppKit)
+                initialPhase = .success(Image(nsImage: cached))
+                #endif
+            }
+        }
+        self._phase = State(wrappedValue: initialPhase)
     }
 
     @Sendable
