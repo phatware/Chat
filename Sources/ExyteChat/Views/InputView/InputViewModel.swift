@@ -30,8 +30,16 @@ final class InputViewModel: ObservableObject {
         UserDefaults.standard.set(size, forKey: maxAttachmentSizeKey)
     }
 
-    @Published var text = ""
-    @Published var attachments = InputViewAttachments()
+    @Published var text = "" {
+        didSet {
+            validateDraft()
+        }
+    }
+    @Published var attachments = InputViewAttachments() {
+        didSet {
+            validateDraft()
+        }
+    }
     @Published var state: InputViewState = .empty
 
     @Published var showGiphyPicker = false
@@ -62,7 +70,6 @@ final class InputViewModel: ObservableObject {
     }
 
     func onStart() {
-        subscribeValidation()
         subscribePicker()
 #if GIPHY_UISDK
         subscribeGiphyPicker()
@@ -80,7 +87,6 @@ final class InputViewModel: ObservableObject {
         text = ""
         saveEditingClosure = nil
         attachments = InputViewAttachments()
-        subscribeValidation()
         state = .empty
     }
 
@@ -268,18 +274,6 @@ private extension InputViewModel {
                   self.attachments.file == nil {
             self.state = .empty
         }
-    }
-
-    func subscribeValidation() {
-        $attachments.sink { [weak self] _ in
-            self?.validateDraft()
-        }
-        .store(in: &subscriptions)
-
-        $text.sink { [weak self] _ in
-            self?.validateDraft()
-        }
-        .store(in: &subscriptions)
     }
 
 #if GIPHY_UISDK
