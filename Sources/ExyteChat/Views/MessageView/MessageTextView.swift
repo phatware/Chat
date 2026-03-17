@@ -48,6 +48,24 @@ struct MessageTextView: View {
         var result = displayText.styled(using: messageStyler)
         result.foregroundColor = theme.colors.messageText(userType)
 
+        // Detect plain-text URLs that the styler didn't already mark as links
+        let plainString = String(result.characters)
+        if let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) {
+            let matches = detector.matches(in: plainString, range: NSRange(plainString.startIndex..., in: plainString))
+            for match in matches {
+                guard let matchRange = Range(match.range, in: plainString),
+                      let attrRange = Range(matchRange, in: result),
+                      let url = match.url else { continue }
+                // Only add link if the styler hasn't already set one
+                if result[attrRange].link == nil {
+                    let scheme = url.scheme?.lowercased() ?? ""
+                    if scheme == "http" || scheme == "https" || scheme == "mailto" {
+                        result[attrRange].link = url
+                    }
+                }
+            }
+        }
+
         for (link, range) in result.runs[\.link] {
             if link != nil {
                 result[range].underlineStyle = .single
@@ -75,8 +93,15 @@ struct MessageTextView: View {
                     .sizeGetter($textSize)
                     .contentShape(Rectangle())
                     .accessibilityLabel(displayText)
-                    .onTapGesture {
-                        if shouldTruncate {
+                    .environment(\.openURL, OpenURLAction { url in
+                        let scheme = url.scheme?.lowercased() ?? ""
+                        if scheme == "http" || scheme == "https" || scheme == "mailto" {
+                            return .systemAction
+                        }
+                        return .discarded
+                    })
+                    .applyIf(shouldTruncate) {
+                        $0.onTapGesture {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 isExpanded.toggle()
                             }
