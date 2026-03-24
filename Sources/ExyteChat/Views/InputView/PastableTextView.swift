@@ -18,6 +18,7 @@ final class PasteInterceptingTextView: UITextView {
     var onPasteVideo: ((Data, String) -> Void)?
     var onPasteFileData: ((Data, String, String) -> Void)?
     var maxHeight: CGFloat = 120
+    var markdownFormattingEnabled = false
 
     override var intrinsicContentSize: CGSize {
         let fixedWidth = bounds.width > 0 ? bounds.width : 250
