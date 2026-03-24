@@ -88,6 +88,7 @@ struct InputView: View {
     var style: InputViewStyle
     var availableInputs: [AvailableInputType]
     var messageStyler: (String) -> AttributedString
+    var markdownFormattingEnabled: Bool = false
     var recorderSettings: RecorderSettings = RecorderSettings()
     var localization: ChatLocalization
 
@@ -173,6 +174,7 @@ struct InputView: View {
                     inputFieldId: inputFieldId,
                     style: style,
                     availableInputs: availableInputs,
+                    markdownFormattingEnabled: markdownFormattingEnabled,
                     localization: localization,
                     onPasteImage: { image in
                         viewModel.handlePastedImage(image)

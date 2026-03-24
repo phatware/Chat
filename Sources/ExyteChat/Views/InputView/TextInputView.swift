@@ -15,6 +15,7 @@ struct TextInputView: View {
     var inputFieldId: UUID
     var style: InputViewStyle
     var availableInputs: [AvailableInputType]
+    var markdownFormattingEnabled: Bool = false
     var localization: ChatLocalization
     var onPasteImage: ((UIImage) -> Void)?
     var onPasteVideo: ((Data, String) -> Void)?
@@ -28,6 +29,7 @@ struct TextInputView: View {
             placeholderColor: UIColor(style == .message ? theme.colors.inputPlaceholderText : theme.colors.inputSignaturePlaceholderText),
             font: .preferredFont(forTextStyle: .body),
             maxHeight: 120,
+            markdownFormattingEnabled: markdownFormattingEnabled,
             isFocused: globalFocusState.focus == .uuid(inputFieldId),
             onFocusChange: { focused in
                 if focused {

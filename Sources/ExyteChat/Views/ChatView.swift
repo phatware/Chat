@@ -119,6 +119,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     var isScrollEnabled: Bool = true
     var avatarSize: CGFloat = 32
     var messageStyler: (String) -> AttributedString = AttributedString.init
+    var markdownFormattingEnabled: Bool = false
     var shouldShowLinkPreview: (URL) -> Bool = { _ in true }
     var showMessageMenuOnLongPress: Bool = true
     var messageMenuAnimationDuration: Double = 0.3
@@ -473,6 +474,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                     style: .message,
                     availableInputs: availableInputs,
                     messageStyler: messageStyler,
+                    markdownFormattingEnabled: markdownFormattingEnabled,
                     recorderSettings: recorderSettings,
                     localization: localization
                 )
@@ -741,7 +743,9 @@ public extension ChatView {
     }
 
     func messageUseMarkdown(_ messageUseMarkdown: Bool) -> ChatView {
-        return messageUseStyler(String.markdownStyler)
+        var view = messageUseStyler(String.markdownStyler)
+        view.markdownFormattingEnabled = messageUseMarkdown
+        return view
     }
 
     func messageUseStyler(_ styler: @escaping (String) -> AttributedString) -> ChatView {

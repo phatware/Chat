@@ -87,6 +87,7 @@ struct PastableTextView: UIViewRepresentable {
     var placeholderColor: UIColor
     var font: UIFont
     var maxHeight: CGFloat
+    var markdownFormattingEnabled: Bool = false
     var isFocused: Bool
     var onFocusChange: ((Bool) -> Void)?
     var onPasteImage: ((UIImage) -> Void)?
@@ -105,6 +106,7 @@ struct PastableTextView: UIViewRepresentable {
         tv.backgroundColor = .clear
         tv.isScrollEnabled = false
         tv.maxHeight = maxHeight
+        tv.markdownFormattingEnabled = markdownFormattingEnabled
         tv.textContainerInset = UIEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
         tv.textContainer.lineFragmentPadding = 0
         tv.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -141,6 +143,7 @@ struct PastableTextView: UIViewRepresentable {
         tv.textColor = textColor
         tv.font = font
         tv.maxHeight = maxHeight
+        tv.markdownFormattingEnabled = markdownFormattingEnabled
         context.coordinator.placeholderLabel?.isHidden = !text.isEmpty
 
         // Sync callbacks
