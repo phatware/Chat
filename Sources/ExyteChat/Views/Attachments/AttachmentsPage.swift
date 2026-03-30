@@ -19,6 +19,13 @@ struct AttachmentsPage: View {
                 contentMode: .scaleAspectFit
             )
         } else if attachment.type == .image {
+#if canImport(UIKit)
+            ZoomableImageView(
+                url: attachment.full,
+                cacheKey: attachment.fullCacheKey,
+                isZoomed: $mediaPagesViewModel.isZoomed
+            )
+#else
             CachedAsyncImage(
                 url: attachment.full,
                 cacheKey: attachment.fullCacheKey
@@ -32,6 +39,7 @@ struct AttachmentsPage: View {
                     ActivityIndicator()
                 }
             }
+#endif
         } else if attachment.type == .video || attachment.isVideoFile {
             // Handle both regular video attachments and video files
             VideoView(viewModel: VideoViewModel(attachment: attachment))

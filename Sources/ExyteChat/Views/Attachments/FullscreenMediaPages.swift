@@ -33,13 +33,19 @@ public struct FullscreenMediaPages: View {
 
     public var body: some View {
         let closeGesture = DragGesture()
-            .onChanged { viewModel.offset = closeSize(from: $0.translation) }
-            .onEnded {
-                withAnimation {
-                    viewModel.offset = .zero
+            .onChanged {
+                if !viewModel.isZoomed {
+                    viewModel.offset = closeSize(from: $0.translation)
                 }
-                if $0.translation.height >= 100 {
-                    onClose()
+            }
+            .onEnded {
+                if !viewModel.isZoomed {
+                    withAnimation {
+                        viewModel.offset = .zero
+                    }
+                    if $0.translation.height >= 100 {
+                        onClose()
+                    }
                 }
             }
 
@@ -52,19 +58,23 @@ public struct FullscreenMediaPages: View {
                         AttachmentsPage(attachment: attachment)
                             .tag(index)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .allowsHitTesting(false)
                             .ignoresSafeArea()
                     }
                     .ignoresSafeArea()
                 }
                 .environmentObject(viewModel)
                 .tabViewStyle(.page(indexDisplayMode: .never))
+                .onChange(of: viewModel.index) { _, _ in
+                    viewModel.isZoomed = false
+                }
             }
             .offset(viewModel.offset)
             .gesture(closeGesture)
             .onTapGesture {
-                withAnimation {
-                    viewModel.showMinis.toggle()
+                if !viewModel.isZoomed {
+                    withAnimation {
+                        viewModel.showMinis.toggle()
+                    }
                 }
             }
 
