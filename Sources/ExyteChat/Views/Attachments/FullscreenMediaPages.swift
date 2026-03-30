@@ -9,13 +9,13 @@ import SwiftUI
 import UIKit
 #endif
 
-struct FullscreenMediaPages: View {
+public struct FullscreenMediaPages: View {
 
     @Environment(\.chatTheme) private var theme
 
-    @StateObject var viewModel: FullscreenMediaPagesViewModel
-    var safeAreaInsets: EdgeInsets
-    var onClose: () -> Void
+    @StateObject public var viewModel: FullscreenMediaPagesViewModel
+    public var safeAreaInsets: EdgeInsets
+    public var onClose: () -> Void
 
     private var isPad: Bool {
 #if canImport(UIKit)
@@ -25,7 +25,13 @@ struct FullscreenMediaPages: View {
 #endif
     }
 
-    var body: some View {
+    public init(viewModel: FullscreenMediaPagesViewModel, safeAreaInsets: EdgeInsets, onClose: @escaping () -> Void) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+        self.safeAreaInsets = safeAreaInsets
+        self.onClose = onClose
+    }
+
+    public var body: some View {
         let closeGesture = DragGesture()
             .onChanged { viewModel.offset = closeSize(from: $0.translation) }
             .onEnded {

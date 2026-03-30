@@ -9,15 +9,20 @@ import SwiftUI
 import QuickLook
 
 /// A SwiftUI representable that wraps `QLPreviewController` for previewing files.
-struct QuickLookPreview: UIViewControllerRepresentable {
-    let url: URL
-    var onDismiss: (() -> Void)? = nil
+public struct QuickLookPreview: UIViewControllerRepresentable {
+    public let url: URL
+    public var onDismiss: (() -> Void)? = nil
 
-    func makeCoordinator() -> Coordinator {
+    public init(url: URL, onDismiss: (() -> Void)? = nil) {
+        self.url = url
+        self.onDismiss = onDismiss
+    }
+
+    public func makeCoordinator() -> Coordinator {
         Coordinator(url: url, onDismiss: onDismiss)
     }
 
-    func makeUIViewController(context: Context) -> UINavigationController {
+    public func makeUIViewController(context: Context) -> UINavigationController {
         let controller = QLPreviewController()
         controller.dataSource = context.coordinator
         controller.delegate = context.coordinator
@@ -25,9 +30,9 @@ struct QuickLookPreview: UIViewControllerRepresentable {
         return nav
     }
 
-    func updateUIViewController(_ uiViewController: UINavigationController, context: Context) {}
+    public func updateUIViewController(_ uiViewController: UINavigationController, context: Context) {}
 
-    class Coordinator: NSObject, QLPreviewControllerDataSource, QLPreviewControllerDelegate {
+    public class Coordinator: NSObject, QLPreviewControllerDataSource, QLPreviewControllerDelegate {
         let url: URL
         let onDismiss: (() -> Void)?
 
@@ -38,23 +43,23 @@ struct QuickLookPreview: UIViewControllerRepresentable {
 
         // MARK: - QLPreviewControllerDataSource
 
-        func numberOfPreviewItems(in controller: QLPreviewController) -> Int {
+        public func numberOfPreviewItems(in controller: QLPreviewController) -> Int {
             1
         }
 
-        func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> any QLPreviewItem {
+        public func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> any QLPreviewItem {
             url as NSURL
         }
 
         // MARK: - QLPreviewControllerDelegate
 
-        func previewControllerDidDismiss(_ controller: QLPreviewController) {
+        public func previewControllerDidDismiss(_ controller: QLPreviewController) {
             onDismiss?()
         }
     }
 
     /// Returns `true` when iOS QuickLook can preview the file at the given URL.
-    static func canPreview(_ url: URL) -> Bool {
+    public static func canPreview(_ url: URL) -> Bool {
         QLPreviewController.canPreview(url as NSURL)
     }
 }

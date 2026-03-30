@@ -5,20 +5,20 @@
 import Foundation
 import Combine
 
-final class FullscreenMediaPagesViewModel: ObservableObject {
-    var attachments: [Attachment]
-    @Published var index: Int
+public final class FullscreenMediaPagesViewModel: ObservableObject {
+    public var attachments: [Attachment]
+    @Published public var index: Int
 
-    @Published var showMinis = true
-    @Published var offset: CGSize = .zero
+    @Published public var showMinis = true
+    @Published public var offset: CGSize = .zero
 
-    @Published var videoPlaying = false
-    @Published var videoMuted = false
+    @Published public var videoPlaying = false
+    @Published public var videoMuted = false
 
-    @Published var toggleVideoPlaying = {}
-    @Published var toggleVideoMuted = {}
+    @Published public var toggleVideoPlaying = {}
+    @Published public var toggleVideoMuted = {}
 
-    init(attachments: [Attachment], index: Int) {
+    public init(attachments: [Attachment], index: Int) {
         self.attachments = attachments
         self.index = index
     }
