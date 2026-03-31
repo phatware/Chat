@@ -190,7 +190,8 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             .environmentObject(keyboardState)
 
             .fullScreenCover(isPresented: $viewModel.fullscreenAttachmentPresented) {
-                let attachments = sections.flatMap { section in section.rows.flatMap { $0.message.attachments } }
+                let allAttachments = sections.flatMap { section in section.rows.flatMap { $0.message.attachments } }
+                let attachments = allAttachments.filter { $0.type == .image || $0.type == .video || $0.isGIF || $0.isVideoFile }
                 let index = attachments.firstIndex { $0.id == viewModel.fullscreenAttachmentItem?.id }
 
                 GeometryReader { g in
