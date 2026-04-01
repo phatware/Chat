@@ -1,6 +1,6 @@
 //
 //  RecordWaveform.swift
-//  
+//
 //
 //  Created by Alisa Mylnikova on 14.03.2023.
 //
@@ -47,7 +47,7 @@ struct RecordWaveformWithButtons: View {
                     await recordPlayer.togglePlay(recording)
                 }
             }
-            
+
             VStack(alignment: .leading, spacing: 5) {
                 RecordWaveformPlaying(samples: recording.waveformSamples, progress: recordPlayer.progress, color: colorWaveform, addExtraDots: false) { progress in
                     Task {
@@ -62,7 +62,7 @@ struct RecordWaveformWithButtons: View {
         }
         .onDisappear {
             Task {
-                await recordPlayer.pause()
+                await recordPlayer.reset()
             }
         }
     }
@@ -80,7 +80,7 @@ struct RecordWaveformPlaying: View {
     @State private var offset: CGSize = .zero
 
     private var adjustedSamples: [CGFloat] = []
-    
+
     init(samples: [CGFloat],
          progress: CGFloat,
          color: Color,
@@ -109,7 +109,7 @@ struct RecordWaveformPlaying: View {
                     }
             }
             .frame(height: RecordWaveform.maxSampleHeight)
-            
+
         }
         .frame(height: RecordWaveform.maxSampleHeight)
         .applyIf(!addExtraDots) {

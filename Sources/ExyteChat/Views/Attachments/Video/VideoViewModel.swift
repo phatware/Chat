@@ -22,6 +22,10 @@ final class VideoViewModel: ObservableObject {
         self.attachment = attachment
     }
 
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
     func onStart() {
         if player == nil {
             self.player = AVPlayer(url: attachment.full)
@@ -34,6 +38,10 @@ final class VideoViewModel: ObservableObject {
 
     func onStop() {
         pauseVideo()
+        NotificationCenter.default.removeObserver(self)
+        player?.replaceCurrentItem(with: nil)
+        player = nil
+        subscriptions.removeAll()
     }
 
     func togglePlay() {

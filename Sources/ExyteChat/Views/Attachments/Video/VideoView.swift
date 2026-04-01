@@ -33,6 +33,8 @@ struct VideoView: View {
         }
         .onDisappear {
             viewModel.onStop()
+            mediaPagesViewModel.toggleVideoPlaying = {}
+            mediaPagesViewModel.toggleVideoMuted = {}
         }
         .onChange(of: viewModel.isPlaying) { _ , newValue in
             mediaPagesViewModel.videoPlaying = newValue

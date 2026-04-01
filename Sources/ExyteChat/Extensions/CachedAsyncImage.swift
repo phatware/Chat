@@ -5,6 +5,31 @@
 import SwiftUI
 import Kingfisher
 
+/// Configure and manage Kingfisher image cache.
+public enum ImageCacheManager {
+    private static var configured = false
+
+    /// Configure Kingfisher cache limits (called once automatically).
+    static func ensureConfigured() {
+        guard !configured else { return }
+        configured = true
+        // Cap memory cache at 50 MB
+        ImageCache.default.memoryStorage.config.totalCostLimit = 50 * 1024 * 1024
+        // Keep at most 50 images in memory
+        ImageCache.default.memoryStorage.config.countLimit = 50
+        // Expire memory-cached images after 5 minutes of non-use
+        ImageCache.default.memoryStorage.config.expiration = .seconds(300)
+        // Disable Kingfisher's disk cache — we already manage temp files ourselves
+        ImageCache.default.diskStorage.config.sizeLimit = 0
+    }
+
+    /// Clear all images from Kingfisher's in-memory cache.
+    /// Call when navigating away from a chat to free image memory immediately.
+    public static func clearMemoryCache() {
+        ImageCache.default.clearMemoryCache()
+    }
+}
+
 /// A view that asynchronously loads and displays an image using Kingfisher.
 ///
 ///     CachedAsyncImage(url: URL(string: "https://example.com/icon.png"))
@@ -68,6 +93,8 @@ public struct CachedAsyncImage<Content>: View where Content: View {
         transaction: Transaction = Transaction(),
         @ViewBuilder content: @escaping (AsyncImagePhase) -> Content
     ) {
+        ImageCacheManager.ensureConfigured()
+
         self.url = url
         self.cacheKey = cacheKey
         self.scale = scale

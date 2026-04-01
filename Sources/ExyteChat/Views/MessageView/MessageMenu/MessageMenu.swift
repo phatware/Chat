@@ -34,7 +34,7 @@ struct MessageMenu<MainButton: View, ActionEnum: MessageMenuAction>: View {
     
     /// The max height for the menu
     /// - Note: menus that exceed this value will be placed in a ScrollView
-    let maxMenuHeight: CGFloat = 200
+    let maxMenuHeight: CGFloat = 280
     
     /// The vertical spacing between the main three components in out VStack (ReactionSelection, Message and Menu)
     let verticalSpacing:CGFloat = 0
