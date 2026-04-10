@@ -107,13 +107,27 @@ struct MessageView: View {
                 bubbleView(message)
             }
 
-            if message.user.isCurrentUser, let status = message.status {
-                MessageStatusView(status: status) {
-                    if case let .error(draft) = status {
-                        viewModel.sendMessage(draft)
+            if message.user.isCurrentUser {
+                if let provider = viewModel.statusProvider {
+                    LiveMessageStatusView(
+                        provider: provider,
+                        messageId: message.id,
+                        fallbackStatus: message.status
+                    ) {
+                        if let status = provider.statuses[message.id] ?? message.status,
+                           case let .error(draft) = status {
+                            viewModel.sendMessage(draft)
+                        }
                     }
+                    .sizeGetter($statusSize)
+                } else if let status = message.status {
+                    MessageStatusView(status: status) {
+                        if case let .error(draft) = status {
+                            viewModel.sendMessage(draft)
+                        }
+                    }
+                    .sizeGetter($statusSize)
                 }
-                .sizeGetter($statusSize)
             }
         }
         .padding(.top, topPadding)

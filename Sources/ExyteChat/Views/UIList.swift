@@ -63,8 +63,9 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
         tableView.transform = CGAffineTransform(rotationAngle: (type == .conversation ? .pi : 0))
 
         tableView.showsVerticalScrollIndicator = false
+        tableView.estimatedRowHeight = 60
         tableView.estimatedSectionHeaderHeight = 1
-        tableView.estimatedSectionFooterHeight = UITableView.automaticDimension
+        tableView.estimatedSectionFooterHeight = 40
         tableView.backgroundColor = UIColor(theme.colors.mainBG)
         tableView.scrollsToTop = false
         tableView.isScrollEnabled = isScrollEnabled
@@ -289,33 +290,40 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
 
             updateContextClosure(sections)
 
-            tableView.beginUpdates()
-            for operation in splitInfo.insertOperations {
-                applyOperation(operation, tableView: tableView)
-            }
-            tableView.endUpdates()
-            //print("4 finished inserts", runID)
+            if wasNearBottom {
+                // New messages near the bottom - insert with animation and auto-scroll
+                tableView.beginUpdates()
+                for operation in splitInfo.insertOperations {
+                    applyOperation(operation, tableView: tableView)
+                }
+                tableView.endUpdates()
 
-            if !isScrollEnabled {
-                tableContentHeight = tableView.contentSize.height
-            }
+                if !isScrollEnabled {
+                    tableContentHeight = tableView.contentSize.height
+                }
 
-            // After insert, scroll to bottom if we were near bottom before
-            // This ensures new messages are visible even if content size changed
-            // (e.g., due to message expansion)
-            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(100)) {
-                if wasNearBottom {
-                    // Scroll to bottom to show the new message
+                // After insert, scroll to bottom to show the new message
+                DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(100)) {
                     if tableView.numberOfSections > 0, tableView.numberOfRows(inSection: 0) > 0 {
                         tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .bottom, animated: true)
                     }
                     self.isScrolledToBottom = true
-                } else {
-                    // Just update the state based on current position
-                    let isAtBottom = tableView.contentOffset.y <= scrollBottomTolerance
-                    if isAtBottom {
-                        self.isScrolledToBottom = true
+                }
+            } else {
+                // Pagination (user scrolled up) - insert without animation.
+                // Don't adjust contentOffset; just let UITableView handle it
+                // naturally so the visible content stays in place.
+                UIView.performWithoutAnimation {
+                    tableView.beginUpdates()
+                    for operation in splitInfo.insertOperations {
+                        applyOperation(operation, tableView: tableView)
                     }
+                    tableView.endUpdates()
+                    tableView.layoutIfNeeded()
+                }
+
+                if !isScrollEnabled {
+                    tableContentHeight = tableView.contentSize.height
                 }
             }
         }

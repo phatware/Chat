@@ -6,14 +6,12 @@
 //
 
 import SwiftUI
+import UIKit
 
 @MainActor
 struct MessageTextView: View {
 
     @Environment(\.chatTheme) private var theme
-
-    /// If the message contains links, this property is used to correctly size the link previews, so they have the same width as the message text.
-    @State private var textSize: CGSize = .zero
 
     /// Tracks whether a long message is expanded to show full text
     @State private var isExpanded: Bool = false
@@ -86,11 +84,23 @@ struct MessageTextView: View {
         return Text(styledText)
     }
 
+    /// Compute the text's single-line intrinsic width via NSAttributedString.
+    /// This is layout-independent, so using it for the link preview width
+    /// cannot create a feedback loop (unlike measuring via GeometryReader).
+    private var intrinsicTextWidth: CGFloat {
+        let nsAttr = NSAttributedString(styledText)
+        let bounds = nsAttr.boundingRect(
+            with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin],
+            context: nil
+        )
+        return ceil(bounds.width)
+    }
+
     var body: some View {
         if !styledText.characters.isEmpty {
             VStack(alignment: .leading) {
                 renderedText
-                    .sizeGetter($textSize)
                     .contentShape(Rectangle())
                     .accessibilityLabel(displayText)
                     .environment(\.openURL, OpenURLAction { url in
@@ -110,12 +120,17 @@ struct MessageTextView: View {
 
                 // We use .enumerated(), and \.offset as the id, so that a message with duplicate links will show a preview for each.
                 if !urlsToPreview.isEmpty {
+                    let previewIdealWidth = max(intrinsicTextWidth, Self.minLinkPreviewWidth)
                     VStack {
                         ForEach(Array(urlsToPreview.enumerated()), id: \.offset) { _, url in
                             LinkPillView(url: url)
                         }
                     }
-                    .frame(width: max(textSize.width, Self.minLinkPreviewWidth))
+                    // minWidth: at least minLinkPreviewWidth (140)
+                    // maxWidth: at most the text's intrinsic single-line width
+                    // When the proposal is narrower than intrinsicTextWidth (text wraps),
+                    // the preview naturally fills the proposal — matching the wrapped text width.
+                    .frame(minWidth: Self.minLinkPreviewWidth, maxWidth: previewIdealWidth, alignment: .leading)
                 }
             }
         }

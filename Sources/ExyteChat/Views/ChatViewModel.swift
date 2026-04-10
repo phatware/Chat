@@ -30,6 +30,10 @@ final class ChatViewModel: ObservableObject {
 
     let inputFieldId = UUID()
 
+    /// Live status provider — set by the host app so that status changes
+    /// update only the status indicator, not the whole message cell.
+    var statusProvider: MessageStatusProvider?
+
     /// Task for auto-clearing clipboard (cancellable on deinit)
     private var clipboardClearTask: Task<Void, Never>?
 

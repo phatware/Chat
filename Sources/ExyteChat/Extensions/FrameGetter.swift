@@ -33,9 +33,15 @@ struct SizeGetter: ViewModifier {
         content
             .background(
                 GeometryReader { proxy -> Color in
-                    if proxy.size != self.size {
+                    // Round to pixel boundaries to prevent sub-pixel jitter
+                    // from triggering infinite layout loops (matches FrameGetter).
+                    let rounded = CGSize(
+                        width: proxy.size.width.rounded(.toNearestOrAwayFromZero),
+                        height: proxy.size.height.rounded(.toNearestOrAwayFromZero)
+                    )
+                    if rounded != self.size {
                         DispatchQueue.main.async {
-                            self.size = proxy.size
+                            self.size = rounded
                         }
                     }
                     return Color.clear

@@ -89,6 +89,10 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     let didUpdateAttachmentStatus: ((AttachmentUploadUpdate) -> Void)?
     var reactionDelegate: ReactionDelegate?
 
+    /// Live status provider — host app supplies this so status changes
+    /// update only the status indicator, not the whole message cell.
+    var statusProvider: MessageStatusProvider?
+
     // MARK: - View builders
 
     /// provide custom message view builder
@@ -444,6 +448,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             viewModel.didSendMessage = didSendMessage
             viewModel.inputViewModel = inputViewModel
             viewModel.globalFocusState = globalFocusState
+            viewModel.statusProvider = statusProvider
             if let didUpdateAttachmentStatus {
                 viewModel.didUpdateAttachmentStatus = didUpdateAttachmentStatus
             }
@@ -852,6 +857,14 @@ public extension ChatView {
     func onMessageMenuAction(_ handler: @escaping MessageMenuActionClosure) -> ChatView {
         var view = self
         view.messageMenuAction = handler
+        return view
+    }
+
+    /// Provides a live status provider so that status changes update only the
+    /// status indicator — without reconfiguring the entire message cell.
+    func messageStatusProvider(_ provider: MessageStatusProvider) -> ChatView {
+        var view = self
+        view.statusProvider = provider
         return view
     }
 }

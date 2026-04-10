@@ -149,17 +149,38 @@ extension Message {
 }
 
 extension Message: Equatable {
+    /// Content-only equality — excludes `status` and `expiresAt` so that
+    /// status transitions and expiration-timer activations do NOT trigger
+    /// UITableView cell reconfigurations (which destroy and recreate the
+    /// SwiftUI view hierarchy, causing image / link-preview flashes).
+    /// Status display is handled via `MessageStatusProvider` instead.
     public static func == (lhs: Message, rhs: Message) -> Bool {
         lhs.id == rhs.id &&
         lhs.user == rhs.user &&
-        lhs.status == rhs.status &&
         lhs.createdAt == rhs.createdAt &&
         lhs.text == rhs.text &&
         lhs.giphyMediaId == rhs.giphyMediaId &&
         lhs.attachments == rhs.attachments &&
         lhs.reactions == rhs.reactions &&
         lhs.recording == rhs.recording &&
-        lhs.replyMessage == rhs.replyMessage
+        lhs.replyMessage == rhs.replyMessage &&
+        lhs.triggerRedraw == rhs.triggerRedraw
+    }
+}
+
+extension Message {
+    /// Consistent with `==` — only hashes content fields.
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(user)
+        hasher.combine(createdAt)
+        hasher.combine(text)
+        hasher.combine(giphyMediaId)
+        hasher.combine(attachments)
+        hasher.combine(reactions)
+        hasher.combine(recording)
+        hasher.combine(replyMessage)
+        hasher.combine(triggerRedraw)
     }
 }
 
