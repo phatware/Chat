@@ -918,5 +918,13 @@ public extension ChatView {
         Message(
             id: "Mwh6", user: juliet, status: .sent, createdAt: tuesday,
             text: "That I shall say 'Good night' till it be morrow"),
+
+        // Emoji-only messages (iMessage-style large emoji)
+        Message(
+            id: "em1", user: romeo, status: .sent, createdAt: tuesday, text: "❤️"),
+        Message(
+            id: "em2", user: juliet, status: .sent, createdAt: tuesday, text: "😘🥰"),
+        Message(
+            id: "em3", user: romeo, status: .sent, createdAt: tuesday, text: "🌙✨💫"),
     ]) { draft in }
 }

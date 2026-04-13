@@ -22,7 +22,7 @@ public struct FileAttachmentView: View {
         HStack(spacing: 12) {
             fileIcon
                 .font(.system(size: 28))
-                .foregroundColor(theme.colors.mainTint)
+                .foregroundColor(.gray)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(fileName)

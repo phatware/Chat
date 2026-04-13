@@ -50,6 +50,29 @@ struct MessageView: View {
         message.attachments.count > 1 ? MessageView.attachmentPadding * 2 : 0
     }
 
+    /// The message text with leading/trailing whitespace stripped.
+    private var trimmedText: String {
+        message.text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// True when the message is purely 1-3 emoji with no attachments/recording.
+    var isEmojiOnlyMessage: Bool {
+        message.attachments.isEmpty
+            && message.recording == nil
+            && message.giphyMediaId == nil
+            && message.replyMessage == nil
+            && trimmedText.isEmojiOnly()
+    }
+
+    /// Font size for stand-alone emoji messages (like iMessage).
+    private var emojiFontSize: CGFloat {
+        switch trimmedText.emojiCount {
+        case 1:  return 48
+        case 2:  return 40
+        default: return 32
+        }
+    }
+
     private var shouldStackTimeBelowText: Bool {
         !message.text.styled(using: messageStyler).urls.isEmpty && messageLinkPreviewLimit > 0
     }
@@ -153,42 +176,50 @@ struct MessageView: View {
                     .zIndex(1)
             }
 
-            VStack(alignment: .leading, spacing: 0) {
+            if isEmojiOnlyMessage {
+                // Large stand-alone emoji (no bubble, no timestamp) – iMessage style
+                Text(trimmedText)
+                    .font(.system(size: emojiFontSize))
+                    .padding(.horizontal, 4)
+                    .zIndex(0)
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
 
 #if GIPHY_UISDK
-               if let giphyMediaId = message.giphyMediaId {
-                   giphyView(giphyMediaId)
-               }
+                   if let giphyMediaId = message.giphyMediaId {
+                       giphyView(giphyMediaId)
+                   }
 #endif
-                if !message.attachments.isEmpty {
-                    attachmentsView(message)
-                }
+                    if !message.attachments.isEmpty {
+                        attachmentsView(message)
+                    }
 
-                if !message.attachments.isEmpty && message.text.isEmpty
-                    && message.attachments.allSatisfy({ $0.type == .file })
-                {
-                    messageTimeView()
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 8)
-                }
-
-                if !message.text.isEmpty {
-                    textWithTimeView(message)
-                        .font(Font(font))
-                }
-
-                if let recording = message.recording {
-                    VStack(alignment: .trailing, spacing: 8) {
-                        recordingView(recording)
+                    if !message.attachments.isEmpty && message.text.isEmpty
+                        && message.attachments.allSatisfy({ $0.type == .file })
+                    {
                         messageTimeView()
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                            .padding(.horizontal, 12)
                             .padding(.bottom, 8)
-                            .padding(.trailing, 12)
+                    }
+
+                    if !message.text.isEmpty {
+                        textWithTimeView(message)
+                            .font(Font(font))
+                    }
+
+                    if let recording = message.recording {
+                        VStack(alignment: .trailing, spacing: 8) {
+                            recordingView(recording)
+                            messageTimeView()
+                                .padding(.bottom, 8)
+                                .padding(.trailing, 12)
+                        }
                     }
                 }
+                .bubbleBackground(message, theme: theme)
+                .zIndex(0)
             }
-            .bubbleBackground(message, theme: theme)
-            .zIndex(0)
         }
         .applyIf(isDisplayingMessageMenu) {
             $0.frameGetter($viewModel.messageFrame)

@@ -71,7 +71,7 @@ public struct VideoFileAttachmentView: View {
                 // Fallback: show video icon
                 Image(systemName: "play.rectangle.fill")
                     .font(.system(size: 24))
-                    .foregroundColor(theme.colors.mainTint)
+                    .foregroundColor(.gray)
             }
 
             // Play button overlay (only if can play)
