@@ -73,13 +73,10 @@ struct RecordWaveformPlaying: View {
     var progress: CGFloat
     var color: Color
     var addExtraDots: Bool
-    var maxLength: CGFloat = 0.0
 
     let progressChangeHandler: (CGFloat) -> Void
 
     @State private var offset: CGSize = .zero
-
-    private var adjustedSamples: [CGFloat] = []
 
     init(samples: [CGFloat],
          progress: CGFloat,
@@ -91,14 +88,17 @@ struct RecordWaveformPlaying: View {
         self.color = color
         self.addExtraDots = addExtraDots
         self.progressChangeHandler = progressChangeHandler
-        self.adjustedSamples = adjustedSamples(UIScreen.main.bounds.width)
-        self.maxLength = max((RecordWaveform.spacing + RecordWaveform.width) * CGFloat(self.adjustedSamples.count) - RecordWaveform.spacing, 0)
     }
 
     var body: some View {
+        let fixedSamples = adjustedSamples(UIScreen.main.bounds.width)
+        let fixedMaxLength = waveformLength(for: fixedSamples.count)
+
         GeometryReader { g in
+            let adjusted = addExtraDots ? adjustedSamples(g.size.width) : fixedSamples
+            let maxLength = waveformLength(for: adjusted.count)
+
             ZStack {
-                let adjusted = addExtraDots ? adjustedSamples(g.size.width) : adjustedSamples
                 RecordWaveform(samples: adjusted, addExtraDots: addExtraDots)
                     .foregroundColor(color.opacity(0.4))
                 RecordWaveform(samples: adjusted, addExtraDots: addExtraDots)
@@ -109,23 +109,27 @@ struct RecordWaveformPlaying: View {
                     }
             }
             .frame(height: RecordWaveform.maxSampleHeight)
-
+            .gesture(addDragGesture(maxLength: maxLength))
         }
         .frame(height: RecordWaveform.maxSampleHeight)
         .applyIf(!addExtraDots) {
-            $0.frame(width: maxLength)
+            $0.frame(width: fixedMaxLength)
         }
-        .frame(maxWidth: addExtraDots ? .infinity : maxLength)
+        .frame(maxWidth: addExtraDots ? .infinity : fixedMaxLength)
         .fixedSize(horizontal: !addExtraDots, vertical: true)
-        .gesture(addDragGesture)
     }
 
-    private var addDragGesture: some Gesture {
+    private func addDragGesture(maxLength: CGFloat) -> some Gesture {
         DragGesture()
             .onChanged { value in
                 offset = value.translation
             }
             .onEnded { _ in
+                guard maxLength > 0 else {
+                    offset = .zero
+                    return
+                }
+
                 let currentPosition = maxLength * progress
                 // multiply by 0.5 so that the sliding will not be too sensitive
                 var newPosition: CGFloat = currentPosition + offset.width * 0.5
@@ -135,20 +139,35 @@ struct RecordWaveformPlaying: View {
                     newPosition = max(newPosition, 0)
                 }
                 let newProgress = newPosition / maxLength
+                offset = .zero
                 progressChangeHandler(newProgress)
             }
     }
 
+    private func waveformLength(for sampleCount: Int) -> CGFloat {
+        max((RecordWaveform.spacing + RecordWaveform.width) * CGFloat(sampleCount) - RecordWaveform.spacing, 0)
+    }
+
     func adjustedSamples(_ maxWidth: CGFloat) -> [CGFloat] {
+        guard !samples.isEmpty else {
+            return []
+        }
+
+        let sampleWidth = RecordWaveform.width + RecordWaveform.spacing
+        guard maxWidth.isFinite, sampleWidth > 0 else {
+            return samples
+        }
+
         // Don't set maxSamples as Int, as casting to Int can make it zero, and we divide by it later.
-        let maxSamples = (maxWidth - RecordWaveformWithButtons.viewPadding) / (RecordWaveform.width + RecordWaveform.spacing)
+        let availableWidth = max(maxWidth - RecordWaveformWithButtons.viewPadding, sampleWidth)
+        let maxSamples = availableWidth / sampleWidth
 
         if Double(samples.count) <= maxSamples {
             return samples
         }
 
         // use ceil to ensure that the adjusted.count will not be greater than maxSamples
-        let ratio = Int(ceil( Double(samples.count) / maxSamples ))
+        let ratio = max(Int(ceil(Double(samples.count) / maxSamples)), 1)
         let adjusted = stride(from: 0, to: samples.count, by: ratio).map {
             samples[$0]
         }

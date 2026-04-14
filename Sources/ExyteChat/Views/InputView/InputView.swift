@@ -113,11 +113,20 @@ struct InputView: View {
     @State private var cancelGesture = false
     private let tapDelay = 0.2
 
+    private var inputBarAlignment: VerticalAlignment {
+        switch state {
+        case .isRecordingHold, .isRecordingTap, .hasRecording, .playingRecording, .pausedRecording:
+            return .center
+        default:
+            return .bottom
+        }
+    }
+
     var body: some View {
         VStack {
             viewOnTop
-            HStack(alignment: .bottom, spacing: 10) {
-                HStack(alignment: .bottom, spacing: 0) {
+            HStack(alignment: inputBarAlignment, spacing: 10) {
+                HStack(alignment: inputBarAlignment, spacing: 0) {
                     leftView
                     middleView
                     rightView
