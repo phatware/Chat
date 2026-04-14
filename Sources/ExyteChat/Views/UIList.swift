@@ -359,22 +359,21 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
     }
 
     func applyOperation(_ operation: Operation, tableView: UITableView) {
-        let animation: UITableView.RowAnimation = .none
         switch operation {
         case .deleteSection(let section):
-            tableView.deleteSections([section], with: animation)
+            tableView.deleteSections([section], with: .fade)
         case .insertSection(let section):
-            tableView.insertSections([section], with: animation)
+            tableView.insertSections([section], with: .none)
 
         case .delete(let section, let row):
-            tableView.deleteRows(at: [IndexPath(row: row, section: section)], with: animation)
+            tableView.deleteRows(at: [IndexPath(row: row, section: section)], with: .fade)
         case .insert(let section, let row):
-            tableView.insertRows(at: [IndexPath(row: row, section: section)], with: animation)
+            tableView.insertRows(at: [IndexPath(row: row, section: section)], with: .none)
         case .edit(let section, let row):
             tableView.reconfigureRows(at: [IndexPath(row: row, section: section)])
         case .swap(let section, let rowFrom, let rowTo):
-            tableView.deleteRows(at: [IndexPath(row: rowFrom, section: section)], with: animation)
-            tableView.insertRows(at: [IndexPath(row: rowTo, section: section)], with: animation)
+            tableView.deleteRows(at: [IndexPath(row: rowFrom, section: section)], with: .none)
+            tableView.insertRows(at: [IndexPath(row: rowTo, section: section)], with: .none)
         }
     }
 
@@ -799,4 +798,3 @@ actor UpdateQueue {
         isProcessing = false
     }
 }
-

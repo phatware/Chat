@@ -53,8 +53,8 @@ struct ExpirationCountdownView: View {
     }
 
     private func formatRemaining(_ seconds: TimeInterval) -> String {
-        if seconds <= 0 {
-            return "1s"
+        if seconds < 1 {
+            return "~2s"
         }
         if seconds < 60 {
             return "<1m"
