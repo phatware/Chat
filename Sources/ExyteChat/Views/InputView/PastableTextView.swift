@@ -95,6 +95,13 @@ struct PastableTextView: UIViewRepresentable {
     var onPasteVideo: ((Data, String) -> Void)?
     var onPasteFileData: ((Data, String, String) -> Void)?
 
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: PasteInterceptingTextView, context: Context) -> CGSize? {
+        let width = proposal.width ?? uiView.bounds.width
+        guard width > 0 else { return nil }
+        let size = uiView.sizeThatFits(CGSize(width: width, height: CGFloat.greatestFiniteMagnitude))
+        return CGSize(width: width, height: min(size.height, maxHeight))
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }

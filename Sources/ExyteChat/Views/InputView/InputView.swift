@@ -188,7 +188,6 @@ struct InputView: View {
                 )
             }
         }
-        .frame(minHeight: 48)
     }
 
     @ViewBuilder
@@ -211,7 +210,6 @@ struct InputView: View {
                 Color.clear.frame(width: 8, height: 1)
             }
         }
-        .frame(minHeight: 48)
     }
 
     @ViewBuilder
