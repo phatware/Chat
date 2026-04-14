@@ -566,9 +566,16 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
             self.sections = sections
             self.ids = ids
             self.mainBackgroundColor = mainBackgroundColor
-            self.paginationTargetIndexPath = paginationTargetIndexPath
             self.listSwipeActions = listSwipeActions
             self.keyboardDismissMode = keyboardDismissMode
+
+            // didSet does not fire during init, so compute the pagination target
+            // manually when sections are already populated at creation time.
+            if let lastSection = sections.last {
+                self.paginationTargetIndexPath = IndexPath(row: lastSection.rows.count - 1, section: sections.count - 1)
+            } else {
+                self.paginationTargetIndexPath = paginationTargetIndexPath
+            }
         }
 
         deinit {
