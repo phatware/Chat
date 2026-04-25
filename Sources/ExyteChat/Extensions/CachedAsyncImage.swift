@@ -10,15 +10,34 @@ public enum ImageCacheManager {
     private static var configured = false
 
     /// Configure Kingfisher cache limits (called once automatically).
+    ///
+    /// Important: chat attachment cells are backed by `UITableView` cells with
+    /// `UIHostingConfiguration`. Any time `cellForRowAt` runs (scroll, layout,
+    /// `reconfigureRows`, orientation change, app foreground) a brand-new
+    /// `CachedAsyncImage` instance is constructed for the same on-screen image.
+    /// `CachedAsyncImage.init` synchronously seeds `phase = .success(...)` from
+    /// this in-memory cache to avoid a placeholder flash. If the entry has
+    /// been evicted, `phase` starts as `.empty`, the placeholder is rendered,
+    /// and the image is re-loaded asynchronously — that is the visible flash.
+    ///
+    /// To prevent that, we keep the in-memory cache large and non-expiring.
+    /// Memory pressure still triggers Kingfisher's automatic purge, so this
+    /// is safe; we only stop time-based and count-based eviction of items
+    /// that are still actively on screen.
     static func ensureConfigured() {
         guard !configured else { return }
         configured = true
-        // Cap memory cache at 50 MB
-        ImageCache.default.memoryStorage.config.totalCostLimit = 50 * 1024 * 1024
-        // Keep at most 50 images in memory
-        ImageCache.default.memoryStorage.config.countLimit = 50
-        // Expire memory-cached images after 5 minutes of non-use
-        ImageCache.default.memoryStorage.config.expiration = .seconds(300)
+        // Cap memory cache at 200 MB (cost is in bytes; honored via UIImage cost)
+        ImageCache.default.memoryStorage.config.totalCostLimit = 200 * 1024 * 1024
+        // Allow many images in memory so a busy chat doesn't evict on-screen cells
+        ImageCache.default.memoryStorage.config.countLimit = 1000
+        // Never time-evict — eviction is driven only by memory pressure / count.
+        // Time-based eviction caused on-screen images to disappear from cache
+        // and flash a placeholder on the next cell reconfigure.
+        ImageCache.default.memoryStorage.config.expiration = .never
+        // Also disable the per-access "extending" expiration sweep so that
+        // long-lived cells don't get pruned during cleanup ticks.
+        ImageCache.default.memoryStorage.config.cleanInterval = 600
         // Disable Kingfisher's disk cache — we already manage temp files ourselves
         ImageCache.default.diskStorage.config.sizeLimit = 0
     }
@@ -139,10 +158,8 @@ public struct CachedAsyncImage<Content>: View where Content: View {
                 ) { result in
                     switch result {
                     case .success(let value):
-                        print("[CachedAsyncImage] Loaded image from: \(value.cacheType)")
                         continuation.resume(returning: value.image)
                     case .failure(let error):
-                        print("[CachedAsyncImage] Failed to load image: \(error)")
                         continuation.resume(throwing: error)
                     }
                 }
