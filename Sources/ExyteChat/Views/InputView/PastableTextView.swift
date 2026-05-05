@@ -21,6 +21,19 @@ final class PasteInterceptingTextView: UITextView {
     var markdownFormattingEnabled = false
 
     override var intrinsicContentSize: CGSize {
+        // Once we've grown past maxHeight scrolling is enabled and the height
+        // is pinned. Re-measuring `sizeThatFits` here on every layout pass
+        // would force TextKit to reshape the *entire* string (height-unbounded
+        // layout) — which for long multilingual paste (mixed scripts, complex
+        // clusters from another app) costs many ms per call. On every scroll
+        // tick this produced a feedback loop with `layoutSubviews` →
+        // `invalidateIntrinsicContentSize` → Auto Layout → `intrinsicContentSize`
+        // and stalled the input view. Pin to maxHeight while scrolling; the
+        // measurement runs again only when text changes (see Coordinator).
+        if isScrollEnabled {
+            return CGSize(width: UIView.noIntrinsicMetric, height: maxHeight)
+        }
+
         let fixedWidth = bounds.width > 0 ? bounds.width : 250
         let size = sizeThatFits(CGSize(width: fixedWidth, height: .greatestFiniteMagnitude))
         let exceedsMax = size.height > maxHeight
@@ -30,11 +43,12 @@ final class PasteInterceptingTextView: UITextView {
         return CGSize(width: UIView.noIntrinsicMetric, height: min(size.height, maxHeight))
     }
 
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        // Recalculate height whenever layout changes
-        invalidateIntrinsicContentSize()
-    }
+    // Note: previously `layoutSubviews` called `invalidateIntrinsicContentSize()`
+    // on every layout pass, which caused an O(N²) feedback loop while scrolling
+    // within long pasted text (each scroll tick fires layoutSubviews → invalidate
+    // → Auto Layout → intrinsicContentSize → full-string TextKit layout). Auto-
+    // grow is now driven solely by `textViewDidChange` in the Coordinator, which
+    // is the only event that can actually change the required height.
 
     override func paste(_ sender: Any?) {
         let pb = UIPasteboard.general
@@ -180,7 +194,13 @@ struct PastableTextView: UIViewRepresentable {
         func textViewDidChange(_ textView: UITextView) {
             parent.text = textView.text ?? ""
             placeholderLabel?.isHidden = !(textView.text ?? "").isEmpty
-            // Invalidate intrinsic size for auto-grow
+            // Auto-grow: text changed, so the cached "isScrollEnabled" decision
+            // may no longer hold (e.g. user just deleted enough to shrink below
+            // maxHeight). Reset scroll enablement and let `intrinsicContentSize`
+            // re-measure once. Without this reset, the early-return in
+            // `intrinsicContentSize` would keep us pinned at maxHeight forever
+            // after the first time the text grew past it.
+            textView.isScrollEnabled = false
             textView.invalidateIntrinsicContentSize()
         }
 
