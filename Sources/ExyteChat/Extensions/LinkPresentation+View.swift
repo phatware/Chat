@@ -64,23 +64,84 @@ private struct PlaceholderOrEnrichedLinkPillView: View {
 
 }
 
+/// "Tap to preview" placeholder shown before the user has consented to load the link preview.
+/// Loading link metadata involves a network request to the destination URL, which can leak the user's
+/// IP address and signal that the message was read. We therefore gate metadata fetching behind an
+/// explicit user tap, rather than auto-fetching as soon as the message is rendered.
+private struct TapToPreviewPillView: View {
+
+    static let pillHeight: CGFloat = 53
+
+    let url: URL
+    let onTap: () -> Void
+
+    private var displayHost: String {
+        url.host ?? url.absoluteString
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 10) {
+                Image(systemName: "link")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Tap to preview")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.primary)
+                    Text(displayHost)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: Self.pillHeight)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(UIColor.secondarySystemBackground))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color(UIColor.separator), lineWidth: 0.5)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Tap to preview link \(displayHost)")
+    }
+
+}
+
 /// PlaceholderOrEnrichedLinkPillView has two mutually exclusive cases - either displaying a placeholder, or enriched content.
 /// To switch from one case to the other, you need to create a new view.
 /// This is inconvenient for consumers since you have to keep track of whether the enriched metadata has loaded or not.
 ///
 /// Therefore, this view manages this complexity, hiding the state of whether the enriched metadata is loaded or not.
 /// Since this view is the only view generating link preview metadata, it also manages the cache.
+///
+/// For security/privacy, metadata is not fetched automatically; the view shows a "tap to preview" placeholder
+/// and only fetches once the user explicitly taps it. Cache hits are shown immediately, since a cache hit
+/// implies the user already consented to load this URL earlier in the session.
 struct LinkPillView: View {
 
-    @State var metadata: LinkPreviewMetadata
+    @State private var metadata: LinkPreviewMetadata
+    @State private var consented: Bool
+    private let url: URL
     private static let cache = LinkMetadataCache()
 
     init(url: URL) {
-        guard let cached = Self.cache.get(forURL: url) else {
-            metadata = .placeholder(for: url)
-            return
+        self.url = url
+        if let cached = Self.cache.get(forURL: url) {
+            _metadata = State(initialValue: .enriched(with: cached))
+            _consented = State(initialValue: true)
+        } else {
+            _metadata = State(initialValue: .placeholder(for: url))
+            _consented = State(initialValue: false)
         }
-        metadata = .enriched(with: cached)
     }
 
     private func fetchMetadata(for url: URL) async {
@@ -96,17 +157,24 @@ struct LinkPillView: View {
     var body: some View {
         // Use ZStack instead of Group as animation modifier doesn't work with Group.
         ZStack {
-            switch metadata {
-            case .placeholder(let url):
-                PlaceholderOrEnrichedLinkPillView(url: url)
-                    .task {
-                        await fetchMetadata(for: url)
-                    }
-            case .enriched(let metadata):
-                PlaceholderOrEnrichedLinkPillView(metadata: metadata)
+            if !consented {
+                TapToPreviewPillView(url: url) {
+                    consented = true
+                }
+            } else {
+                switch metadata {
+                case .placeholder(let url):
+                    PlaceholderOrEnrichedLinkPillView(url: url)
+                        .task {
+                            await fetchMetadata(for: url)
+                        }
+                case .enriched(let metadata):
+                    PlaceholderOrEnrichedLinkPillView(metadata: metadata)
+                }
             }
         }
         .animation(.default, value: metadata)
+        .animation(.default, value: consented)
     }
 
 }
