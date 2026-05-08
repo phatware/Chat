@@ -13,21 +13,41 @@ final class InputViewModel: ObservableObject {
     /// Default maximum allowed attachment size in bytes (1MB for free tier).
     static let defaultMaxAttachmentSize: Int = 1 * 1024 * 1024
 
+    /// Default absolute hard cap (10MB). No tier — including Pro — can exceed this.
+    static let defaultHardMaxAttachmentSize: Int = 10 * 1024 * 1024
+
     /// UserDefaults key for max attachment size.
     /// NOTE: This key must match YMConstants.UserDefaults.chatMaxAttachmentSize in the host app.
     private static let maxAttachmentSizeKey = "chat.maxAttachmentSize"
 
-    /// Maximum allowed attachment size in bytes.
+    /// UserDefaults key for the absolute hard cap.
+    /// NOTE: Must match YMConstants.UserDefaults.chatHardMaxAttachmentSize in the host app.
+    private static let hardMaxAttachmentSizeKey = "chat.hardMaxAttachmentSize"
+
+    /// Maximum allowed attachment size for the current subscription tier, in bytes.
     /// Reads from UserDefaults, allowing external configuration (e.g., by SubscriptionManager).
     var maxAttachmentSize: Int {
         let stored = UserDefaults.standard.integer(forKey: Self.maxAttachmentSizeKey)
         return stored > 0 ? stored : Self.defaultMaxAttachmentSize
     }
 
+    /// Absolute hard cap for any attachment, regardless of tier.
+    var hardMaxAttachmentSize: Int {
+        let stored = UserDefaults.standard.integer(forKey: Self.hardMaxAttachmentSizeKey)
+        let value = stored > 0 ? stored : Self.defaultHardMaxAttachmentSize
+        // Hard cap can never be smaller than the tier limit.
+        return max(value, maxAttachmentSize)
+    }
+
     /// Sets the maximum attachment size in UserDefaults.
     /// Call this when subscription status changes.
     static func setMaxAttachmentSize(_ size: Int) {
         UserDefaults.standard.set(size, forKey: maxAttachmentSizeKey)
+    }
+
+    /// Sets the absolute hard cap in UserDefaults.
+    static func setHardMaxAttachmentSize(_ size: Int) {
+        UserDefaults.standard.set(size, forKey: hardMaxAttachmentSizeKey)
     }
 
     @Published var text = "" {
@@ -52,6 +72,10 @@ final class InputViewModel: ObservableObject {
 
     /// Error message to display to the user
     @Published var errorMessage: String?
+
+    /// Whether the current `errorMessage` represents a limit the user can lift by upgrading.
+    /// `false` for hard caps that affect all tiers (including Pro).
+    @Published var errorIsUpgradable: Bool = false
 
     var recordingPlayer: RecordingPlayer?
     var didSendMessage: ((DraftMessage) -> Void)?
@@ -363,10 +387,13 @@ private extension InputViewModel {
             // Check file size limit
             if let file = attachments.file {
                 if file.fileData.count > self.maxAttachmentSize {
+                    let exceedsHardCap = file.fileData.count > self.hardMaxAttachmentSize
+                    let limitMB = (exceedsHardCap ? self.hardMaxAttachmentSize : self.maxAttachmentSize) / 1024 / 1024
                     await MainActor.run {
                         showActivityIndicator = false
                         self.text = messageText // Restore text on error
-                        errorMessage = "File is too large. Maximum size is \(self.maxAttachmentSize / 1024 / 1024)MB."
+                        errorIsUpgradable = !exceedsHardCap
+                        errorMessage = "File is too large. Maximum size is \(limitMB)MB."
                     }
                     return
                 }
@@ -386,10 +413,13 @@ private extension InputViewModel {
                             return
                         }
                         if data.count > self.maxAttachmentSize {
+                            let exceedsHardCap = data.count > self.hardMaxAttachmentSize
+                            let limitMB = (exceedsHardCap ? self.hardMaxAttachmentSize : self.maxAttachmentSize) / 1024 / 1024
                             await MainActor.run {
                                 showActivityIndicator = false
                                 self.text = messageText // Restore text on error
-                                errorMessage = "Media is too large. Maximum size is \(self.maxAttachmentSize / 1024 / 1024)MB."
+                                errorIsUpgradable = !exceedsHardCap
+                                errorMessage = "Media is too large. Maximum size is \(limitMB)MB."
                             }
                             return
                         }

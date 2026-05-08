@@ -231,18 +231,20 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                 get: { inputViewModel.errorMessage != nil },
                 set: { if !$0 { inputViewModel.errorMessage = nil } }
             )) {
-                if showUpgradeOption {
+                let canOfferUpgrade = showUpgradeOption && inputViewModel.errorIsUpgradable
+                if canOfferUpgrade {
                     Button("Upgrade to Pro") {
                         inputViewModel.errorMessage = nil
                         onUpgradeRequested?()
                     }
                 }
-                Button(showUpgradeOption ? "Cancel" : "OK", role: .cancel) {
+                Button(canOfferUpgrade ? "Cancel" : "OK", role: .cancel) {
                     inputViewModel.errorMessage = nil
                 }
             } message: {
                 if let errorMessage = inputViewModel.errorMessage {
-                    Text(showUpgradeOption ? "\(errorMessage)\n\nUpgrade to Pro for larger attachments." : errorMessage)
+                    let canOfferUpgrade = showUpgradeOption && inputViewModel.errorIsUpgradable
+                    Text(canOfferUpgrade ? "\(errorMessage)\n\nUpgrade to Pro for larger attachments." : errorMessage)
                 }
             }
 #if GIPHY_UISDK
