@@ -50,6 +50,47 @@ final class PasteInterceptingTextView: UITextView {
     // grow is now driven solely by `textViewDidChange` in the Coordinator, which
     // is the only event that can actually change the required height.
 
+    /// UTTypes that this text view's `paste(_:)` knows how to consume.
+    /// Used by both the paste pipeline and `canPerformAction(_:withSender:)`
+    /// so the system shows a "Paste" menu entry whenever the pasteboard
+    /// holds any of these — not only when it also holds text. Without
+    /// this, copying an image inside the app (which writes only
+    /// `public.png` to the pasteboard) leaves UITextView's default
+    /// `canPerformAction` returning false for `.paste`, so the menu
+    /// item never appears even though our `paste(_:)` would handle it.
+    /// iMessages happens to put text alongside the image, which is why
+    /// pasting from iMessages "just works" with the default behaviour.
+    private static let acceptedPasteTypes: [UTType] = [
+        .mpeg4Movie, .movie, .quickTimeMovie, .video,
+        .image, .png, .jpeg, .gif, .heic, .heif, .webP, .tiff, .bmp,
+        .pdf,
+        .fileURL,
+    ]
+
+    /// True if the system pasteboard holds anything our `paste(_:)`
+    /// override knows how to handle (image / video / PDF / file URL).
+    private var pasteboardHasAcceptableNonTextContent: Bool {
+        let pb = UIPasteboard.general
+        if pb.hasImages { return true }
+        let ids = Self.acceptedPasteTypes.map(\.identifier)
+        if pb.contains(pasteboardTypes: ids) { return true }
+        if let urls = pb.urls, urls.contains(where: { $0.isFileURL }) { return true }
+        return false
+    }
+
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if action == #selector(paste(_:)) {
+            // Enable Paste when the pasteboard holds either text (the
+            // UITextView default) or any media type our `paste(_:)`
+            // override knows how to consume. Without this, in-app
+            // image copies (image-only pasteboard, no string) leave
+            // the "Paste" menu item hidden because UITextView only
+            // considers text by default.
+            if pasteboardHasAcceptableNonTextContent { return true }
+        }
+        return super.canPerformAction(action, withSender: sender)
+    }
+
     override func paste(_ sender: Any?) {
         let pb = UIPasteboard.general
 
