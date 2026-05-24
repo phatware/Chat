@@ -58,98 +58,113 @@ struct AttachmentsEditor<InputViewContent: View>: View {
 
     var mediaPicker: some View {
         GeometryReader { g in
-            MediaPicker(isPresented: $inputViewModel.showPicker) {
-                selectedMedias = $0
-                assembleSelectedMedia()
-            } albumSelectionBuilder: { _, albumSelectionView, _ in
-                VStack {
-                    albumSelectionHeaderView
-                        .padding(.top, g.safeAreaInsets.top)
-                    albumSelectionView
-                    Spacer()
-                    if showSignatureInput {
-                        inputView
-                            .padding(.bottom, g.safeAreaInsets.bottom)
-                    }
-                }
-                .background(mediaPickerTheme.main.pickerBackground.ignoresSafeArea())
-            } cameraSelectionBuilder: { _, discardClosure, cameraSelectionView in
-                VStack {
-                    cameraSelectionView
-                        .overlay(alignment: .top) {
-                            cameraSelectionHeaderView(closeClosure: {
-                                discardClosure()
-                                inputViewModel.showPicker = false
-                            })
-                                .padding(.top, 12)
-                        }
-                        .overlay(alignment: .bottom) {
-                            HStack {
-                                Button("Retake") {
-                                    discardClosure()
-                                }
-
-                                Spacer()
-
-                                Button("Done") {
-                                    inputViewModel.showPicker = false
-                                }
-                            }
-                            .foregroundColor(mediaPickerTheme.main.pickerText)
-                            .font(.subheadline)
-                            .padding(.horizontal, 24)
-                            .padding(.top, 14)
-                            .padding(.bottom, max(g.safeAreaInsets.bottom, 18))
-                            .background(.ultraThinMaterial)
-                        }
-                        .padding(.top, g.safeAreaInsets.top)
-                    Spacer()
-                    if showSignatureInput {
-                        inputView
-                            .padding(.bottom, g.safeAreaInsets.bottom)
-                    }
-                }
-                .background(mediaPickerTheme.main.pickerBackground.ignoresSafeArea())
-            }
-            .didPressCancelCamera {
-                inputViewModel.showPicker = false
-            }
-            .currentFullscreenMedia($currentFullscreenMedia)
-            .setSelectionParameters(mediaPickerSelectionParameters)
-            .setMediaPickerParameters(mediaPickerParameters)
-            .pickerMode($inputViewModel.mediaPickerMode)
-            .orientationHandler(orientationHandler)
-            .padding(.top)
-            .background(theme.colors.mainBG)
-            .ignoresSafeArea(.all)
-            .onChange(of: currentFullscreenMedia) {
-                assembleSelectedMedia()
-            }
-            .onChange(of: inputViewModel.showPicker) {
-                let showFullscreenPreview = mediaPickerSelectionParameters?.showFullscreenPreview ?? false
-                let selectionLimit = mediaPickerSelectionParameters?.selectionLimit ?? 1
-
-                if !inputViewModel.showPicker {
-                    // Ensure the next open starts in a sane mode.
-                    inputViewModel.mediaPickerMode = .photos
-                }
-
-                if selectionLimit == 1 && !showFullscreenPreview {
+            if inputViewModel.mediaPickerMode == .camera {
+                NativeCameraPicker { media in
+                    selectedMedias = [media]
+                    currentFullscreenMedia = nil
                     assembleSelectedMedia()
-                    // Don't auto-send - let user see preview and press send manually
+                    inputViewModel.mediaPickerMode = .photos
+                    inputViewModel.showPicker = false
+                } onCancel: {
+                    inputViewModel.mediaPickerMode = .photos
+                    inputViewModel.showPicker = false
                 }
-            }
-            .applyIf(!mediaPickerThemeIsOverridden) {
-                $0.mediaPickerTheme(
-                    main: .init(
-                        pickerText: theme.colors.mainText,
-                        pickerBackground: theme.colors.mainBG,
-                        fullscreenPhotoBackground: theme.colors.mainBG
-                    ),
-                    selection: .init(
-                        accent: theme.colors.sendButtonBackground
+                .background(theme.colors.mainBG)
+                .ignoresSafeArea(.all)
+            } else {
+                MediaPicker(isPresented: $inputViewModel.showPicker) {
+                    selectedMedias = $0
+                    assembleSelectedMedia()
+                } albumSelectionBuilder: { _, albumSelectionView, _ in
+                    VStack {
+                        albumSelectionHeaderView
+                            .padding(.top, g.safeAreaInsets.top)
+                        albumSelectionView
+                        Spacer()
+                        if showSignatureInput {
+                            inputView
+                                .padding(.bottom, g.safeAreaInsets.bottom)
+                        }
+                    }
+                    .background(mediaPickerTheme.main.pickerBackground.ignoresSafeArea())
+                } cameraSelectionBuilder: { _, discardClosure, cameraSelectionView in
+                    VStack {
+                        cameraSelectionView
+                            .overlay(alignment: .top) {
+                                cameraSelectionHeaderView(closeClosure: {
+                                    discardClosure()
+                                    inputViewModel.showPicker = false
+                                })
+                                    .padding(.top, 12)
+                            }
+                            .overlay(alignment: .bottom) {
+                                HStack {
+                                    Button("Retake") {
+                                        discardClosure()
+                                    }
+
+                                    Spacer()
+
+                                    Button("Done") {
+                                        inputViewModel.showPicker = false
+                                    }
+                                }
+                                .foregroundColor(mediaPickerTheme.main.pickerText)
+                                .font(.subheadline)
+                                .padding(.horizontal, 24)
+                                .padding(.top, 14)
+                                .padding(.bottom, max(g.safeAreaInsets.bottom, 18))
+                                .background(.ultraThinMaterial)
+                            }
+                            .padding(.top, g.safeAreaInsets.top)
+                        Spacer()
+                        if showSignatureInput {
+                            inputView
+                                .padding(.bottom, g.safeAreaInsets.bottom)
+                        }
+                    }
+                    .background(mediaPickerTheme.main.pickerBackground.ignoresSafeArea())
+                }
+                .didPressCancelCamera {
+                    inputViewModel.showPicker = false
+                }
+                .currentFullscreenMedia($currentFullscreenMedia)
+                .setSelectionParameters(mediaPickerSelectionParameters)
+                .setMediaPickerParameters(mediaPickerParameters)
+                .pickerMode($inputViewModel.mediaPickerMode)
+                .orientationHandler(orientationHandler)
+                .padding(.top)
+                .background(theme.colors.mainBG)
+                .ignoresSafeArea(.all)
+                .onChange(of: currentFullscreenMedia) {
+                    assembleSelectedMedia()
+                }
+                .onChange(of: inputViewModel.showPicker) {
+                    let showFullscreenPreview = mediaPickerSelectionParameters?.showFullscreenPreview ?? false
+                    let selectionLimit = mediaPickerSelectionParameters?.selectionLimit ?? 1
+
+                    if !inputViewModel.showPicker {
+                        // Ensure the next open starts in a sane mode.
+                        inputViewModel.mediaPickerMode = .photos
+                    }
+
+                    if selectionLimit == 1 && !showFullscreenPreview {
+                        assembleSelectedMedia()
+                        // Don't auto-send - let user see preview and press send manually
+                    }
+                }
+                .applyIf(!mediaPickerThemeIsOverridden) {
+                    $0.mediaPickerTheme(
+                        main: .init(
+                            pickerText: theme.colors.mainText,
+                            pickerBackground: theme.colors.mainBG,
+                            fullscreenPhotoBackground: theme.colors.mainBG
+                        ),
+                        selection: .init(
+                            accent: theme.colors.sendButtonBackground
+                        )
                     )
-                )
+                }
             }
         }
     }
