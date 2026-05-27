@@ -7,6 +7,18 @@
 
 import SwiftUI
 
+/// Host-supplied renderer for message body text. When the closure returns a
+/// non-`nil` `AnyView`, ExyteChat embeds it directly inside the message
+/// bubble instead of running the default `Text`-based pipeline. Return
+/// `nil` to fall back to the built-in renderer for that specific message
+/// (e.g. so outgoing user-typed text keeps the default styling while
+/// incoming agent text gets rendered as markdown).
+///
+/// - Parameter text: raw message body, exactly as stored.
+/// - Parameter userType: `.current` for the local user's outgoing message,
+///   `.other` for an incoming peer message.
+public typealias ChatMessageBodyRenderer = @MainActor (_ text: String, _ userType: UserType) -> AnyView?
+
 public extension EnvironmentValues {
     #if swift(>=6.0)
     @Entry var chatTheme = ChatTheme()
@@ -14,6 +26,7 @@ public extension EnvironmentValues {
     @Entry var giphyConfig = GiphyConfiguration()
 #endif
     @Entry var chatInputAccessory: ChatInputAccessoryConfiguration? = nil
+    @Entry var chatMessageBodyRenderer: ChatMessageBodyRenderer? = nil
     #else
     var chatTheme: ChatTheme {
         get { self[ChatThemeKey.self] }
@@ -30,6 +43,11 @@ public extension EnvironmentValues {
     var chatInputAccessory: ChatInputAccessoryConfiguration? {
         get { self[ChatInputAccessoryKey.self] }
         set { self[ChatInputAccessoryKey.self] = newValue }
+    }
+
+    var chatMessageBodyRenderer: ChatMessageBodyRenderer? {
+        get { self[ChatMessageBodyRendererKey.self] }
+        set { self[ChatMessageBodyRendererKey.self] = newValue }
     }
     #endif
 }
@@ -48,6 +66,10 @@ public struct GiphyConfigurationKey: EnvironmentKey {
 
 public struct ChatInputAccessoryKey: EnvironmentKey {
     public static let defaultValue: ChatInputAccessoryConfiguration? = nil
+}
+
+public struct ChatMessageBodyRendererKey: EnvironmentKey {
+    public static let defaultValue: ChatMessageBodyRenderer? = nil
 }
 #endif
 
@@ -75,6 +97,14 @@ extension View {
     /// groups, and forwards live text changes to the host app.
     public func chatInputAccessory(_ configuration: ChatInputAccessoryConfiguration?) -> some View {
         self.environment(\.chatInputAccessory, configuration)
+    }
+
+    /// Replace the default message body renderer with a host-supplied closure.
+    /// Use this to plug in a richer markdown engine (MarkdownUI, Down, etc.)
+    /// without forking ExyteChat. Pass `nil` to fall back to the built-in
+    /// `Text`-based renderer.
+    public func chatMessageBodyRenderer(_ renderer: ChatMessageBodyRenderer?) -> some View {
+        self.environment(\.chatMessageBodyRenderer, renderer)
     }
 }
 

@@ -12,6 +12,10 @@ import UIKit
 struct MessageTextView: View {
 
     @Environment(\.chatTheme) private var theme
+    /// Optional host-supplied renderer for the message body (e.g. MarkdownUI
+    /// for agent-mode bubbles). When non-nil it replaces the default Text
+    /// rendering path; URL detection / link previews still run on top.
+    @Environment(\.chatMessageBodyRenderer) private var customBodyRenderer
 
     /// Tracks whether a long message is expanded to show full text
     @State private var isExpanded: Bool = false
@@ -97,26 +101,50 @@ struct MessageTextView: View {
         return ceil(bounds.width)
     }
 
+    @ViewBuilder
+    private var bodyContent: some View {
+        // Ask the host renderer first; it may opt out per-message (e.g. only
+        // render markdown for incoming agent messages and let outgoing user
+        // text keep the default styling). When it accepts, we still honour
+        // the same truncation/expand contract the default Text path uses —
+        // pass the (possibly truncated) `displayText` so long agent replies
+        // collapse the same way long plain-text messages do.
+        if let renderer = customBodyRenderer, let customView = renderer(displayText, userType) {
+            customView
+                .contentShape(Rectangle())
+                .accessibilityLabel(displayText)
+                .applyIf(shouldTruncate) {
+                    $0.onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isExpanded.toggle()
+                        }
+                    }
+                }
+        } else {
+            renderedText
+                .contentShape(Rectangle())
+                .accessibilityLabel(displayText)
+                .environment(\.openURL, OpenURLAction { url in
+                    let scheme = url.scheme?.lowercased() ?? ""
+                    if scheme == "http" || scheme == "https" || scheme == "mailto" {
+                        return .systemAction
+                    }
+                    return .discarded
+                })
+                .applyIf(shouldTruncate) {
+                    $0.onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isExpanded.toggle()
+                        }
+                    }
+                }
+        }
+    }
+
     var body: some View {
         if !styledText.characters.isEmpty {
             VStack(alignment: .leading) {
-                renderedText
-                    .contentShape(Rectangle())
-                    .accessibilityLabel(displayText)
-                    .environment(\.openURL, OpenURLAction { url in
-                        let scheme = url.scheme?.lowercased() ?? ""
-                        if scheme == "http" || scheme == "https" || scheme == "mailto" {
-                            return .systemAction
-                        }
-                        return .discarded
-                    })
-                    .applyIf(shouldTruncate) {
-                        $0.onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                isExpanded.toggle()
-                            }
-                        }
-                    }
+                bodyContent
 
                 // We use .enumerated(), and \.offset as the id, so that a message with duplicate links will show a preview for each.
                 if !urlsToPreview.isEmpty {
