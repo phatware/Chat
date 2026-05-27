@@ -150,6 +150,8 @@ struct PastableTextView: UIViewRepresentable {
     var onPasteVideo: ((Data, String) -> Void)?
     var onPasteFileData: ((Data, String, String) -> Void)?
 
+    @Environment(\.chatInputAccessory) private var accessory: ChatInputAccessoryConfiguration?
+
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: PasteInterceptingTextView, context: Context) -> CGSize? {
         let width = proposal.width ?? uiView.bounds.width
         guard width > 0 else { return nil }
@@ -195,6 +197,9 @@ struct PastableTextView: UIViewRepresentable {
         tv.onPasteImage = onPasteImage
         tv.onPasteVideo = onPasteVideo
         tv.onPasteFileData = onPasteFileData
+
+        applyAccessory(accessory, to: tv, context: context, firstApply: true)
+
         return tv
     }
 
@@ -214,6 +219,8 @@ struct PastableTextView: UIViewRepresentable {
         tv.onPasteVideo = onPasteVideo
         tv.onPasteFileData = onPasteFileData
 
+        applyAccessory(accessory, to: tv, context: context, firstApply: false)
+
         // Sync focus
         if isFocused, !tv.isFirstResponder {
             DispatchQueue.main.async { tv.becomeFirstResponder() }
@@ -222,19 +229,80 @@ struct PastableTextView: UIViewRepresentable {
         }
     }
 
+    /// Applies the host-supplied accessory configuration to the live UITextView.
+    /// Called on first creation and on every SwiftUI update so the bar groups
+    /// stay current when the host swaps them (e.g. as parsed commands grow).
+    private func applyAccessory(
+        _ accessory: ChatInputAccessoryConfiguration?,
+        to tv: PasteInterceptingTextView,
+        context: Context,
+        firstApply: Bool
+    ) {
+        context.coordinator.onTextChange = accessory?.onTextChange
+
+        if let keyboardType = accessory?.keyboardType {
+            if tv.keyboardType != keyboardType {
+                tv.keyboardType = keyboardType
+                // Reload input views so the swap takes effect even while the
+                // keyboard is already on screen.
+                if tv.isFirstResponder { tv.reloadInputViews() }
+            }
+        }
+
+        let assistant = tv.inputAssistantItem
+        let newLeading = accessory?.leadingBarButtonGroups ?? []
+        let newTrailing = accessory?.trailingBarButtonGroups ?? []
+        if !areBarButtonGroupsEqual(assistant.leadingBarButtonGroups, newLeading) {
+            assistant.leadingBarButtonGroups = newLeading
+        }
+        if !areBarButtonGroupsEqual(assistant.trailingBarButtonGroups, newTrailing) {
+            assistant.trailingBarButtonGroups = newTrailing
+        }
+
+        // Custom toolbar docked above the keyboard. Only swap when the
+        // reference changes — reassigning the same view triggers an
+        // unnecessary keyboard layout pass and can flicker on iPhone.
+        let newAccessoryView = accessory?.inputAccessoryView
+        if tv.inputAccessoryView !== newAccessoryView {
+            tv.inputAccessoryView = newAccessoryView
+            if tv.isFirstResponder {
+                tv.reloadInputViews()
+            }
+        }
+
+        if firstApply {
+            accessory?.onTextViewReady?(tv)
+        }
+    }
+
+    /// Bar-button groups compare by identity; this avoids reassigning identical
+    /// lists which would otherwise dismiss-and-reshow the assistant bar.
+    private func areBarButtonGroupsEqual(_ a: [UIBarButtonItemGroup], _ b: [UIBarButtonItemGroup]) -> Bool {
+        guard a.count == b.count else { return false }
+        for (lhs, rhs) in zip(a, b) where lhs !== rhs { return false }
+        return true
+    }
+
     // MARK: - Coordinator
 
     final class Coordinator: NSObject, UITextViewDelegate {
         var parent: PastableTextView
         weak var placeholderLabel: UILabel?
+        /// Host-supplied per-keystroke callback (used for slash-command
+        /// autocomplete overlays). The SwiftUI binding above is the source of
+        /// truth for the text; this is a parallel side-channel that fires on
+        /// every keystroke without depending on view re-renders.
+        var onTextChange: ((String) -> Void)?
 
         init(_ parent: PastableTextView) {
             self.parent = parent
         }
 
         func textViewDidChange(_ textView: UITextView) {
-            parent.text = textView.text ?? ""
-            placeholderLabel?.isHidden = !(textView.text ?? "").isEmpty
+            let value = textView.text ?? ""
+            parent.text = value
+            placeholderLabel?.isHidden = !value.isEmpty
+            onTextChange?(value)
             // Auto-grow: text changed, so the cached "isScrollEnabled" decision
             // may no longer hold (e.g. user just deleted enough to shrink below
             // maxHeight). Reset scroll enablement and let `intrinsicContentSize`

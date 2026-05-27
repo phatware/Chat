@@ -13,6 +13,7 @@ public extension EnvironmentValues {
 #if GIPHY_UISDK
     @Entry var giphyConfig = GiphyConfiguration()
 #endif
+    @Entry var chatInputAccessory: ChatInputAccessoryConfiguration? = nil
     #else
     var chatTheme: ChatTheme {
         get { self[ChatThemeKey.self] }
@@ -25,6 +26,11 @@ public extension EnvironmentValues {
        set { self[GiphyConfigurationKey.self] = newValue }
    }
 #endif
+
+    var chatInputAccessory: ChatInputAccessoryConfiguration? {
+        get { self[ChatInputAccessoryKey.self] }
+        set { self[ChatInputAccessoryKey.self] = newValue }
+    }
     #endif
 }
 
@@ -39,6 +45,10 @@ public struct GiphyConfigurationKey: EnvironmentKey {
    public static let defaultValue = GiphyConfiguration()
 }
 #endif
+
+public struct ChatInputAccessoryKey: EnvironmentKey {
+    public static let defaultValue: ChatInputAccessoryConfiguration? = nil
+}
 #endif
 
 extension View {
@@ -59,6 +69,13 @@ extension View {
        self.environment(\.giphyConfig, config)
    }
 #endif
+
+    /// Install an accessory configuration applied to the underlying chat text
+    /// input — customises the keyboard type and the `inputAssistantItem` bar
+    /// groups, and forwards live text changes to the host app.
+    public func chatInputAccessory(_ configuration: ChatInputAccessoryConfiguration?) -> some View {
+        self.environment(\.chatInputAccessory, configuration)
+    }
 }
 
 public struct ChatTheme {
