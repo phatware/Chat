@@ -133,9 +133,38 @@ public struct CachedAsyncImage<Content>: View where Content: View {
                 #elseif canImport(AppKit)
                 initialPhase = .success(Image(nsImage: cached))
                 #endif
+            } else if url.isFileURL, let localImage = Self.loadLocalImage(at: url) {
+                // The image lives in a local file we control (e.g. a chat
+                // attachment's temp file), so there's no reason to load it
+                // asynchronously through a placeholder. Decode it synchronously
+                // and seed `.success` directly — this is what removes the
+                // first-display placeholder flash. Also prime Kingfisher's
+                // memory cache so subsequent displays (and `load()` below) hit
+                // instead of re-decoding from disk.
+                ImageCache.default.store(localImage, forKey: key, toDisk: false)
+                #if canImport(UIKit)
+                initialPhase = .success(Image(uiImage: localImage))
+                #elseif canImport(AppKit)
+                initialPhase = .success(Image(nsImage: localImage))
+                #endif
+            } else {
+                ChatRedrawDebug.log("CachedAsyncImage MISS (placeholder will flash) key=\(key)")
             }
         }
         self._phase = State(wrappedValue: initialPhase)
+    }
+
+    /// Synchronously decode a local image file as a platform image.
+    /// Used to seed `.success` on a memory-cache miss for file URLs so the
+    /// first display doesn't flash a placeholder.
+    private static func loadLocalImage(at url: URL) -> KFCrossPlatformImage? {
+        #if canImport(UIKit)
+        return UIImage(contentsOfFile: url.path)
+        #elseif canImport(AppKit)
+        return NSImage(contentsOfFile: url.path)
+        #else
+        return nil
+        #endif
     }
 
     @Sendable
@@ -158,6 +187,7 @@ public struct CachedAsyncImage<Content>: View where Content: View {
                 ) { result in
                     switch result {
                     case .success(let value):
+                        ChatRedrawDebug.log("CachedAsyncImage load resolved from \(value.cacheType) key=\(cacheKey ?? url.absoluteString)")
                         continuation.resume(returning: value.image)
                     case .failure(let error):
                         continuation.resume(throwing: error)

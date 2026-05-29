@@ -1,6 +1,6 @@
 //
 //  Recorder.swift
-//  
+//
 //
 //  Created by Alisa Mylnikova on 09.03.2023.
 //
@@ -43,7 +43,7 @@ final actor Recorder {
             return startRecordingInternal(durationProgressHandler)
         }
     }
-    
+
     private func startRecordingInternal(_ durationProgressHandler: @escaping ProgressHandler) -> URL? {
         let settings: [String : Any] = [
             AVFormatIDKey: Int(recorderSettings.audioFormatID),
@@ -69,7 +69,9 @@ final actor Recorder {
             audioRecorder = try AVAudioRecorder(url: recordingUrl, settings: settings)
             audioRecorder?.isMeteringEnabled = true
             let started = audioRecorder?.record() ?? false
+#if DEBUG
             print("[Recorder] Recording started: \(started), URL: \(recordingUrl)")
+#endif
             durationProgressHandler(0.0, [])
 
             // Start timer task for duration updates
@@ -83,7 +85,9 @@ final actor Recorder {
 
             return recordingUrl
         } catch {
+#if DEBUG
             print("[Recorder] Failed to start recording: \(error)")
+#endif
             stopRecording()
             return nil
         }
@@ -115,8 +119,10 @@ final actor Recorder {
     func stopRecording() {
         timerTask?.cancel()
         timerTask = nil
-        audioRecorder?.stop()
+        let recorder = audioRecorder
         audioRecorder = nil
+        recorder?.stop()
+        try? audioSession.setActive(false, options: [.notifyOthersOnDeactivation])
     }
 
     private func fileExtension(for formatID: AudioFormatID) -> String? {

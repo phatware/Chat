@@ -174,6 +174,8 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
             return
         }
 
+        ChatRedrawDebug.log("UIList.updateUIView: sections differ (old=\(context.coordinator.sections.reduce(0) { $0 + $1.rows.count }) new=\(sections.reduce(0) { $0 + $1.rows.count })) -> scheduling table update")
+
         Task {
             await updateQueue.enqueue() {
                 await updateIfNeeded(coordinator: context.coordinator, tableView: tableView)
@@ -212,6 +214,7 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
 
         let prevSections = coordinator.sections
         let splitInfo = await performSplitInBackground(prevSections, sections)
+        ChatRedrawDebug.log("UIList.applyUpdates: deletes=\(splitInfo.deleteOperations.count) swaps=\(splitInfo.swapOperations.count) edits=\(splitInfo.editOperations.count) inserts=\(splitInfo.insertOperations.count) — edits/swaps reconfigure existing cells (flash source)")
         await applyUpdatesToTable(tableView, splitInfo: splitInfo) {
             coordinator.sections = $0
         }

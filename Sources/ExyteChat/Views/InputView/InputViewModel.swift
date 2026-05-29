@@ -102,6 +102,17 @@ final class InputViewModel: ObservableObject {
 
     func onStop() {
         subscriptions.removeAll()
+        unsubscribeRecordPlayer()
+
+        Task { @MainActor in
+            if state == .isRecordingHold || state == .isRecordingTap {
+                await recorder.stopRecording()
+                discardRecordingAttachment()
+                restoreInputStateAfterRecordingRemoval()
+            }
+
+            await recordingPlayer?.reset()
+        }
     }
 
     func reset() {
@@ -112,6 +123,18 @@ final class InputViewModel: ObservableObject {
         saveEditingClosure = nil
         attachments = InputViewAttachments()
         state = .empty
+    }
+
+    func cancelActiveRecordingIfNeeded() {
+        guard state == .isRecordingHold || state == .isRecordingTap else { return }
+
+        Task { @MainActor in
+            unsubscribeRecordPlayer()
+            await recorder.stopRecording()
+            await recordingPlayer?.reset()
+            discardRecordingAttachment()
+            restoreInputStateAfterRecordingRemoval()
+        }
     }
 
     func send() {
@@ -131,11 +154,15 @@ final class InputViewModel: ObservableObject {
     }
 
     func setFile(_ file: DraftFile?) {
+#if DEBUG
         print("[InputViewModel] setFile called: \(file?.fileName ?? "nil"), size: \(file?.fileData.count ?? 0)")
+#endif
         attachments.file = file
         showFilePicker = false
         validateDraft()
+#if DEBUG
         print("[InputViewModel] After setFile - state: \(state), file attached: \(attachments.file != nil)")
+#endif
     }
 
     /// Handle an image pasted from the clipboard.
@@ -213,8 +240,8 @@ final class InputViewModel: ObservableObject {
             Task {
                 unsubscribeRecordPlayer()
                 await recorder.stopRecording()
-                attachments.recording = nil
-                state = .empty
+                discardRecordingAttachment()
+                restoreInputStateAfterRecordingRemoval()
             }
         case .playRecord:
             state = .playingRecording
@@ -276,6 +303,18 @@ final class InputViewModel: ObservableObject {
 }
 
 private extension InputViewModel {
+
+    func restoreInputStateAfterRecordingRemoval() {
+        state = .empty
+        validateDraft()
+    }
+
+    func discardRecordingAttachment() {
+        if let url = attachments.recording?.url {
+            try? FileManager.default.removeItem(at: url)
+        }
+        attachments.recording = nil
+    }
 
     func validateDraft() {
         // Don't interfere with editing or recording states
@@ -345,15 +384,18 @@ private extension InputViewModel {
 
     func sendMessage(text messageText: String) {
         showActivityIndicator = true
+#if DEBUG
         print("[InputViewModel] sendMessage called")
-
+#endif
         Task {
             // Check for empty content - nothing to send
             let hasText = !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             let hasMedia = !attachments.medias.isEmpty
             let hasFile = attachments.file != nil && attachments.file!.fileData.count > 0
             let hasRecording = attachments.recording != nil && attachments.recording!.duration > 0
+#if DEBUG
             print("[InputViewModel] sendMessage checks: hasText=\(hasText), hasMedia=\(hasMedia), hasFile=\(hasFile), hasRecording=\(hasRecording)")
+#endif
 
             if !hasText && !hasMedia && !hasFile && !hasRecording {
                 await MainActor.run {
@@ -450,7 +492,9 @@ private extension InputViewModel {
                     createdAt: Date()
                 )
 #endif
+#if DEBUG
                 print("[InputViewModel] Sending draft with file: \(draft.file?.fileName ?? "nil")")
+#endif
                 didSendMessage?(draft)
                 showActivityIndicator = false
                 reset()

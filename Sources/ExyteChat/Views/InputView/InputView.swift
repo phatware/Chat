@@ -80,6 +80,7 @@ struct InputView: View {
 
     @Environment(\.chatTheme) private var theme
     @Environment(\.mediaPickerTheme) private var pickerTheme
+    @Environment(\.scenePhase) private var scenePhase
 
     @EnvironmentObject private var keyboardState: KeyboardState
 
@@ -145,6 +146,10 @@ struct InputView: View {
         .onAppear {
             viewModel.recordingPlayer = recordingPlayer
             viewModel.setRecorderSettings(recorderSettings: recorderSettings)
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase != .active else { return }
+            viewModel.cancelActiveRecordingIfNeeded()
         }
         .onDrag(towards: .bottom, ofAmount: 100...) {
             keyboardState.resignFirstResponder()

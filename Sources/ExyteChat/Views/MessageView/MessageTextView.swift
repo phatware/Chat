@@ -41,8 +41,96 @@ struct MessageTextView: View {
     /// The text to display (truncated or full based on expansion state)
     private var displayText: String {
         if shouldTruncate && !isExpanded {
-            return String(text.prefix(Self.maxTruncatedCharacters)) + "..."
+            return Self.safeTruncated(text, limit: Self.maxTruncatedCharacters)
         }
+        return text
+    }
+
+    /// Truncate `text` for the collapsed preview without ever cutting inside a
+    /// line or inside a multiline markdown/equation block.
+    ///
+    /// Rules:
+    /// - The cut only ever lands on a line boundary (`\n`), so single-line
+    ///   constructs (bold, italic, inline code, inline `\(…\)` math) are never
+    ///   split mid-token.
+    /// - Boundaries that fall inside a multiline block are skipped until the
+    ///   block closes: fenced code (``` / ~~~), display math `$$…$$`, and
+    ///   bracket math `\[…\]` / `\(…\)`. Math delimiters inside a code fence are
+    ///   treated as literal text.
+    /// - If no safe boundary exists at/after `limit` (e.g. one very long line,
+    ///   or an unterminated block), the full text is shown rather than risk
+    ///   corrupting the markdown.
+    static func safeTruncated(_ text: String, limit: Int) -> String {
+        let chars = Array(text)
+        let n = chars.count
+        guard n > limit else { return text }
+
+        var inFence = false
+        var fenceChar: Character = "`"
+        var inDollarMath = false   // $$ … $$
+        var inBracketMath = false  // \[ … \]
+        var inParenMath = false    // \( … \)
+        var atLineStart = true
+        var i = 0
+
+        while i < n {
+            let c = chars[i]
+
+            // Stay in "line start" through any leading spaces.
+            if atLineStart && c == " " {
+                i += 1
+                continue
+            }
+
+            // Fenced code block markers (``` or ~~~), only at the start of a line.
+            if atLineStart && (c == "`" || c == "~") {
+                var j = i
+                while j < n && chars[j] == c { j += 1 }
+                if j - i >= 3 {
+                    if inFence {
+                        if c == fenceChar { inFence = false }
+                    } else if !inDollarMath && !inBracketMath && !inParenMath {
+                        inFence = true
+                        fenceChar = c
+                    }
+                    atLineStart = false
+                    i = j
+                    continue
+                }
+            }
+
+            if c == "\n" {
+                if i >= limit && !inFence && !inDollarMath && !inBracketMath && !inParenMath {
+                    return String(chars[0..<i]) + "\n…"
+                }
+                atLineStart = true
+                i += 1
+                continue
+            }
+
+            // Math delimiters are only meaningful outside code fences.
+            if !inFence {
+                if c == "$", i + 1 < n, chars[i + 1] == "$", !inBracketMath, !inParenMath {
+                    inDollarMath.toggle()
+                    atLineStart = false
+                    i += 2
+                    continue
+                }
+                if c == "\\", i + 1 < n, !inDollarMath {
+                    switch chars[i + 1] {
+                    case "[": inBracketMath = true;  atLineStart = false; i += 2; continue
+                    case "]": inBracketMath = false; atLineStart = false; i += 2; continue
+                    case "(": inParenMath = true;    atLineStart = false; i += 2; continue
+                    case ")": inParenMath = false;   atLineStart = false; i += 2; continue
+                    default: break
+                    }
+                }
+            }
+
+            atLineStart = false
+            i += 1
+        }
+
         return text
     }
 
