@@ -38,12 +38,19 @@ struct MessageTextView: View {
         text.count > Self.maxTruncatedCharacters
     }
 
-    /// The text to display (truncated or full based on expansion state)
+    /// The text to display (truncated or full based on expansion state).
+    ///
+    /// Normal (plain-text) bubbles truncate at exactly `maxTruncatedCharacters`
+    /// — matching the long-standing tap-to-expand behaviour. When a host
+    /// markdown renderer is installed (agent chat), we instead use the
+    /// markdown-safe truncation so we never cut inside a fenced code block or
+    /// a math span.
     private var displayText: String {
-        if shouldTruncate && !isExpanded {
+        guard shouldTruncate && !isExpanded else { return text }
+        if customBodyRenderer != nil {
             return Self.safeTruncated(text, limit: Self.maxTruncatedCharacters)
         }
-        return text
+        return String(text.prefix(Self.maxTruncatedCharacters)) + "…"
     }
 
     /// Truncate `text` for the collapsed preview without ever cutting inside a
