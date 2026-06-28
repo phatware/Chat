@@ -4,6 +4,7 @@
 
 import SwiftUI
 import Kingfisher
+import ImageIO
 
 /// Configure and manage Kingfisher image cache.
 public enum ImageCacheManager {
@@ -154,10 +155,46 @@ public struct CachedAsyncImage<Content>: View where Content: View {
         self._phase = State(wrappedValue: initialPhase)
     }
 
-    /// Synchronously decode a local image file as a platform image.
-    /// Used to seed `.success` on a memory-cache miss for file URLs so the
-    /// first display doesn't flash a placeholder.
+    /// Maximum pixel dimension (longest edge) for decoded chat images.
+    ///
+    /// Chat attachments can be full-size camera photos (several thousand pixels
+    /// wide). Decoding those at full resolution allocates tens of MB of bitmap
+    /// *per image* and, because the in-memory cache is cost-bounded, evicts other
+    /// on-screen images — so scrolling up/down re-decodes full-size images over and
+    /// over (the memory growth + choppiness). Downsampling to a display-appropriate
+    /// size keeps each decoded bitmap small (a few MB), so a whole conversation's
+    /// images fit in cache without eviction and any re-decode is cheap. 1536px stays
+    /// crisp for both message bubbles and full-screen viewing on phones/tablets.
+    // private let maxDecodePixelSize: CGFloat = 1536
+
+    /// Synchronously decode a local image file — downsampled to `maxDecodePixelSize`
+    /// — as a platform image. Used to seed `.success` on a memory-cache miss for
+    /// file URLs so the first display doesn't flash a placeholder.
+    ///
+    /// Uses ImageIO thumbnail generation, which decodes straight to the target
+    /// size (it never materializes the full-resolution bitmap) and respects EXIF
+    /// orientation. `ShouldCacheImmediately` forces the decode now so the bitmap is
+    /// render-ready and the main thread isn't decoding lazily during scroll.
     private static func loadLocalImage(at url: URL) -> KFCrossPlatformImage? {
+        let downsampleOptions: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: 1536
+        ]
+
+        if let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+           let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, downsampleOptions as CFDictionary) {
+            #if canImport(UIKit)
+            return UIImage(cgImage: cgImage)
+            #elseif canImport(AppKit)
+            return NSImage(cgImage: cgImage, size: .zero)
+            #else
+            return nil
+            #endif
+        }
+
+        // Fallback: full decode if ImageIO could not produce a thumbnail.
         #if canImport(UIKit)
         return UIImage(contentsOfFile: url.path)
         #elseif canImport(AppKit)
