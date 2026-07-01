@@ -35,7 +35,10 @@ struct MessageView: View {
     // Therefore we need to capture it's rendered size in order to place it correctly
     @State var bubbleSize: CGSize = .zero
 
-    static let widthWithMedia: CGFloat = 204
+    /// Width of a media bubble: 2/3 of the screen width, capped at 350pt.
+    static var widthWithMedia: CGFloat {
+        min(UIScreen.main.bounds.width * 2 / 3, 350)
+    }
     static let horizontalScreenEdgePadding: CGFloat = 12
     static let horizontalNoAvatarPadding: CGFloat = horizontalScreenEdgePadding / 2
     static let horizontalAvatarPadding: CGFloat = 8

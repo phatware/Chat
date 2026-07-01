@@ -52,29 +52,37 @@ struct AttachmentsGrid: View {
     }
 
     var body: some View {
-        VStack(spacing: 4) {
+        // Media bubble width (2/3 of screen, capped) drives all attachment sizes so
+        // the image fills the bubble instead of staying at the old fixed 204pt.
+        let mediaWidth = MessageView.widthWithMedia
+        let gridSpacing: CGFloat = 4
+        let pairCell = (mediaWidth - gridSpacing) / 2
+
+        return VStack(spacing: gridSpacing) {
             // File attachments shown as a vertical list
             ForEach(fileAttachments) { file in
-                AttachmentCell(attachment: file, size: CGSize(width: 204, height: 60),
+                AttachmentCell(attachment: file, size: CGSize(width: mediaWidth, height: 60),
                                showCancel: isCurrentUser, onTap: onTap)
-                    .frame(width: 204)
+                    .frame(width: mediaWidth)
             }
 
             // Media attachments shown as grid
             if let attachment = single {
-                AttachmentCell(attachment: attachment, size: CGSize(width: 204, height: grid.isEmpty ? 200 : 100),
+                AttachmentCell(attachment: attachment,
+                               size: CGSize(width: mediaWidth,
+                                            height: grid.isEmpty ? mediaWidth * (200.0 / 204.0) : pairCell),
                                showCancel: isCurrentUser, onTap: onTap)
                 .clipped()
                 .cornerRadius(onlyOne ? 0 : 12)
             }
             if !grid.isEmpty {
                 ForEach(pair(), id: \.id) { pair in
-                    HStack(spacing: 4) {
-                        AttachmentCell(attachment: pair.left, size: CGSize(width: 100, height: 100),
+                    HStack(spacing: gridSpacing) {
+                        AttachmentCell(attachment: pair.left, size: CGSize(width: pairCell, height: pairCell),
                                        showCancel: isCurrentUser, onTap: onTap)
                             .clipped()
                             .cornerRadius(12)
-                        AttachmentCell(attachment: pair.right, size: CGSize(width: 100, height: 100),
+                        AttachmentCell(attachment: pair.right, size: CGSize(width: pairCell, height: pairCell),
                                        showCancel: isCurrentUser, onTap: onTap)
                             .clipped()
                             .overlay {
