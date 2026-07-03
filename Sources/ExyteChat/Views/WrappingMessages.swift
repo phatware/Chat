@@ -10,16 +10,23 @@ import SwiftUI
 extension ChatView {
 
     nonisolated static func mapMessages(_ messages: [Message], chatType: ChatType, replyMode: ReplyMode) -> [MessagesSection] {
-        guard messages.hasUniqueIDs() else {
-            fatalError("Messages can not have duplicate ids, please make sure every message gets a unique id")
+        // Duplicate ids would corrupt the table diff (rows keyed by message id).
+        // This used to be a fatalError; dropping the later duplicates keeps a
+        // transient upstream race self-healing in production while still
+        // screaming in debug builds.
+        var seenIds = Set<String>()
+        seenIds.reserveCapacity(messages.count)
+        let uniqueMessages = messages.filter { seenIds.insert($0.id).inserted }
+        if uniqueMessages.count != messages.count {
+            assertionFailure("Messages can not have duplicate ids, please make sure every message gets a unique id")
         }
 
         let result: [MessagesSection]
         switch replyMode {
         case .quote:
-            result = mapMessagesQuoteModeReplies(messages, chatType: chatType, replyMode: replyMode)
+            result = mapMessagesQuoteModeReplies(uniqueMessages, chatType: chatType, replyMode: replyMode)
         case .answer:
-            result = mapMessagesCommentModeReplies(messages, chatType: chatType, replyMode: replyMode)
+            result = mapMessagesCommentModeReplies(uniqueMessages, chatType: chatType, replyMode: replyMode)
         }
 
         return result
