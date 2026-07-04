@@ -80,7 +80,13 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
             guard let tableView = tableView, let coordinator = coordinator else { return }
             if !coordinator.sections.isEmpty {
                 guard tableView.numberOfSections > 0, tableView.numberOfRows(inSection: 0) > 0 else { return }
-                tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .bottom, animated: true)
+                // The table is inverted (rotated π): the newest message (row 0) sits at
+                // logical y = 0. Use `.top` so the cell's logical top — which is the visual
+                // bottom / end of the list — aligns with the viewport. Using `.bottom` here
+                // would align the cell's logical bottom (the visual TOP of a tall message)
+                // with the viewport bottom, scrolling to the top of messages taller than
+                // the screen instead of the actual end of the list.
+                tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .top, animated: true)
             }
         }
 
@@ -305,10 +311,15 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
                     tableContentHeight = tableView.contentSize.height
                 }
 
-                // After insert, scroll to bottom to show the new message
+                // After insert, scroll to bottom to show the new message.
+                // The table is inverted (rotated π), so the newest message (row 0) is at
+                // logical y = 0; `.top` pins its logical top — the visual bottom / end of
+                // the list. `.bottom` would instead align the cell's logical bottom (the
+                // visual top of a tall message) with the viewport, scrolling to the top of
+                // messages that are taller than the screen.
                 DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(100)) {
                     if tableView.numberOfSections > 0, tableView.numberOfRows(inSection: 0) > 0 {
-                        tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .bottom, animated: true)
+                        tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .top, animated: true)
                     }
                     self.isScrolledToBottom = true
                 }
