@@ -44,9 +44,20 @@ public enum ImageCacheManager {
     }
 
     /// Clear all images from Kingfisher's in-memory cache.
-    /// Call when navigating away from a chat to free image memory immediately.
+    /// Call on a memory warning to free every decoded bitmap immediately; images
+    /// still backed by an on-disk temp file are re-decoded on next display.
     public static func clearMemoryCache() {
         ImageCache.default.clearMemoryCache()
+    }
+
+    /// Remove specific images from Kingfisher's in-memory cache by cache key.
+    /// Call when closing a chat session to release just that conversation's
+    /// decoded bitmaps without discarding other on-screen content (avatars,
+    /// other sessions kept warm).
+    public static func removeImages(forKeys keys: [String]) {
+        for key in keys {
+            ImageCache.default.removeImage(forKey: key, fromDisk: false)
+        }
     }
 }
 
