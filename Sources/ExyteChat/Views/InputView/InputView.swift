@@ -61,9 +61,12 @@ public enum InputViewState: Sendable {
 
 public enum AvailableInputType: Sendable {
     case text
+    /// Photo and video attachments (camera + pictures).
     case media
     case audio
     case giphy
+    /// Arbitrary file attachments (the document picker entry).
+    case files
 }
 
 public struct InputViewAttachments {
@@ -190,15 +193,18 @@ struct InputView: View {
                     availableInputs: availableInputs,
                     markdownFormattingEnabled: markdownFormattingEnabled,
                     localization: localization,
-                    onPasteImage: { image in
+                    // Pasting is the same capability as attaching: if the peer
+                    // can't receive pictures/files, don't let a paste smuggle
+                    // one past the hidden attachment menu.
+                    onPasteImage: isMediaAvailable() ? { image in
                         viewModel.handlePastedImage(image)
-                    },
-                    onPasteVideo: { data, fileName in
+                    } : nil,
+                    onPasteVideo: isMediaAvailable() ? { data, fileName in
                         viewModel.handlePastedVideo(data, fileName: fileName)
-                    },
-                    onPasteFileData: { data, name, mime in
+                    } : nil,
+                    onPasteFileData: isFilesAvailable() ? { data, name, mime in
                         viewModel.handlePastedFile(data, fileName: name, mimeType: mime)
-                    }
+                    } : nil
                 )
             }
         }
@@ -444,28 +450,37 @@ struct InputView: View {
         }
     }
 
+    @ViewBuilder
     var attachMenuButton: some View {
-        Menu {
-            Button {
-                onAction(.camera)
+        // The whole menu disappears when the peer accepts neither pictures nor
+        // files; otherwise only the unsupported entries are dropped.
+        if isMediaAvailable() || isFilesAvailable() {
+            Menu {
+                if isMediaAvailable() {
+                    Button {
+                        onAction(.camera)
+                    } label: {
+                        Label("Camera", systemImage: "camera")
+                    }
+                    Button {
+                        onAction(.photo)
+                    } label: {
+                        Label("Pictures", systemImage: "photo.on.rectangle")
+                    }
+                }
+                if isFilesAvailable() {
+                    Button {
+                        onAction(.files)
+                    } label: {
+                        Label("Files", systemImage: "doc")
+                    }
+                }
             } label: {
-                Label("Camera", systemImage: "camera")
+                Image(systemName: "paperclip")
+                    .font(.system(size: 20))
+                    .foregroundColor(theme.colors.mainTint)
+                    .padding(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 8))
             }
-            Button {
-                onAction(.photo)
-            } label: {
-                Label("Pictures", systemImage: "photo.on.rectangle")
-            }
-            Button {
-                onAction(.files)
-            } label: {
-                Label("Files", systemImage: "doc")
-            }
-        } label: {
-            Image(systemName: "paperclip")
-                .font(.system(size: 20))
-                .foregroundColor(theme.colors.mainTint)
-                .padding(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 8))
         }
     }
 
@@ -745,6 +760,10 @@ struct InputView: View {
 
     private func isMediaAvailable() -> Bool {
         return availableInputs.contains(AvailableInputType.media)
+    }
+
+    private func isFilesAvailable() -> Bool {
+        return availableInputs.contains(AvailableInputType.files)
     }
 }
 

@@ -42,11 +42,14 @@ struct TextInputView: View {
         )
         .fixedSize(horizontal: false, vertical: true)
         .padding(.vertical, 10)
-        .padding(.leading, !isMediaGiphyAvailable() ? 12 : 0)
+        .padding(.leading, !hasLeadingButton() ? 12 : 0)
     }
 
-    private func isMediaGiphyAvailable() -> Bool {
+    /// Whether a button sits to the left of the field (attachment menu or giphy).
+    /// When every leading button is hidden the field supplies its own padding.
+    private func hasLeadingButton() -> Bool {
         return availableInputs.contains(AvailableInputType.media)
+        || availableInputs.contains(AvailableInputType.files)
         || availableInputs.contains(AvailableInputType.giphy)
     }
 }

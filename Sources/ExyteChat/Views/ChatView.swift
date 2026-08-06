@@ -137,7 +137,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     var showMessageTimeView = true
     var messageLinkPreviewLimit = 8
     var messageFont = UIFontMetrics.default.scaledFont(for: UIFont.systemFont(ofSize: 15))
-    var availableInputs: [AvailableInputType] = [.text, .audio, .giphy, .media]
+    var availableInputs: [AvailableInputType] = [.text, .audio, .giphy, .media, .files]
     var recorderSettings: RecorderSettings = RecorderSettings()
     var showUpgradeOption: Bool = false
     var onUpgradeRequested: (() -> Void)?
