@@ -68,6 +68,12 @@ private struct PlaceholderOrEnrichedLinkPillView: View {
 /// Loading link metadata involves a network request to the destination URL, which can leak the user's
 /// IP address and signal that the message was read. We therefore gate metadata fetching behind an
 /// explicit user tap, rather than auto-fetching as soon as the message is rendered.
+///
+/// The pill paints itself against `secondarySystemBackground`, so its labels use
+/// absolute `.label` / `.secondaryLabel` colors. Hierarchical styles (`.primary`,
+/// `.secondary`) must not be used here: they resolve against the foreground color
+/// the bubble applies in `bubbleBackground`, which is white for outgoing messages
+/// (`ChatTheme.colors.messageMyText`) and would render the pill invisible.
 private struct TapToPreviewPillView: View {
 
     static let pillHeight: CGFloat = 53
@@ -84,14 +90,14 @@ private struct TapToPreviewPillView: View {
             HStack(spacing: 10) {
                 Image(systemName: "link")
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color(UIColor.secondaryLabel))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Tap to preview")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color(UIColor.label))
                     Text(displayHost)
                         .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color(UIColor.secondaryLabel))
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
