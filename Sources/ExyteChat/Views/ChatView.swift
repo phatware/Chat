@@ -25,6 +25,10 @@ public enum ReplyMode: CaseIterable, Sendable {
     case answer // when replying to message A, new message with appear direclty below message A as a separate cell without duplicating message A in its body
 }
 
+// Use the property wrapper explicitly: Xcode 27's State macro emits missing
+// LazyState initializer symbols for this generic view's cross-file initializers.
+private typealias ChatViewState<Value> = SwiftUI.State<Value>
+
 public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction: MessageMenuAction>: View {
 
     /// To build a custom message view use the following parameters passed by this closure:
@@ -150,19 +154,19 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     @StateObject private var networkMonitor = NetworkMonitor()
     @StateObject private var keyboardState = KeyboardState()
 
-    @State private var isScrolledToBottom: Bool = true
-    @State private var shouldScrollToTop: () -> () = {}
+    @ChatViewState private var isScrolledToBottom: Bool = true
+    @ChatViewState private var shouldScrollToTop: () -> () = {}
 
     /// Used to prevent the MainView from responding to keyboard changes while the Menu is active
-    @State private var isShowingMenu = false
+    @ChatViewState private var isShowingMenu = false
 
-    @State private var tableContentHeight: CGFloat = 0
-    @State private var inputViewSize = CGSize.zero
-    @State private var cellFrames = [String: CGRect]()
+    @ChatViewState private var tableContentHeight: CGFloat = 0
+    @ChatViewState private var inputViewSize = CGSize.zero
+    @ChatViewState private var cellFrames = [String: CGRect]()
 
-    @State private var giphyConfigured = false
+    @ChatViewState private var giphyConfigured = false
 #if GIPHY_UISDK
-    @State private var selectedMedia: GPHMedia? = nil
+    @ChatViewState private var selectedMedia: GPHMedia? = nil
 #endif
 
     public init(messages: [Message],
@@ -198,7 +202,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                 let attachments = allAttachments.filter { $0.type == .image || $0.type == .video || $0.isGIF || $0.isVideoFile }
                 let index = attachments.firstIndex { $0.id == viewModel.fullscreenAttachmentItem?.id }
 
-                GeometryReader { g in
+                GeometryReader { [viewModel] g in
                     FullscreenMediaPages(
                         viewModel: FullscreenMediaPagesViewModel(
                             attachments: attachments,
@@ -618,7 +622,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
         availableInputs.contains(AvailableInputType.giphy)
     }
 
-    private static func createLocalization() -> ChatLocalization {
+    nonisolated private static func createLocalization() -> ChatLocalization {
         ChatLocalization(
             inputPlaceholder: String(localized: "Type a message..."),
             signatureText: String(localized: "Add signature..."),

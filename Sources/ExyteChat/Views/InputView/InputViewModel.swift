@@ -265,7 +265,7 @@ final class InputViewModel: ObservableObject {
     }
 
     private func startRecording() {
-        Task { @MainActor in
+        Task { @MainActor [self] in
             // Check if already recording
             if await recorder.isRecording {
                 return
@@ -365,7 +365,7 @@ private extension InputViewModel {
     }
 
     func subscribeRecordPlayer() {
-        Task { @MainActor in
+        Task { @MainActor [self] in
             if let recordingPlayer {
                 recordPlayerSubscription = recordingPlayer.didPlayTillEnd
                     .sink { [weak self] in

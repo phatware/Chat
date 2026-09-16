@@ -14,6 +14,7 @@ public extension Notification.Name {
 
 private let scrollBottomTolerance = CGFloat(25)
 
+@MainActor
 struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
 
     typealias MessageBuilderClosure = ChatView<MessageContent, InputView, DefaultMessageMenuAction>.MessageBuilderClosure
@@ -72,11 +73,9 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
         tableView.keyboardDismissMode = keyboardDismissMode
 
         // Store observer token in coordinator for proper cleanup
-        context.coordinator.scrollToBottomObserver = NotificationCenter.default.addObserver(
-            forName: .onScrollToBottom,
-            object: nil,
-            queue: .main
-        ) { [weak tableView, weak coordinator = context.coordinator] _ in
+        context.coordinator.scrollToBottomObserver = MainActorNotificationObserver(
+            name: .onScrollToBottom
+        ) { [weak tableView, weak coordinator = context.coordinator] in
             guard let tableView = tableView, let coordinator = coordinator else { return }
             if !coordinator.sections.isEmpty {
                 guard tableView.numberOfSections > 0, tableView.numberOfRows(inSection: 0) > 0 else { return }
@@ -91,13 +90,12 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
         }
 
         // Scroll-to-message observer for search navigation
-        context.coordinator.scrollToMessageObserver = NotificationCenter.default.addObserver(
-            forName: .onScrollToMessage,
-            object: nil,
-            queue: .main
-        ) { [weak tableView, weak coordinator = context.coordinator] notification in
+        context.coordinator.scrollToMessageObserver = MainActorNotificationObserver(
+            name: .onScrollToMessage,
+            value: { $0.userInfo?["messageId"] as? String }
+        ) { [weak tableView, weak coordinator = context.coordinator] messageId in
             guard let tableView = tableView, let coordinator = coordinator else { return }
-            guard let messageId = notification.userInfo?["messageId"] as? String else { return }
+            guard let messageId else { return }
 
             // Find the IndexPath for this message ID
             for (sectionIndex, section) in coordinator.sections.enumerated() {
@@ -153,11 +151,9 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
         // SwiftUI won't propagate an environment change to UIHostingConfiguration cells, so they
         // keep their old portrait layout. Force-reload on interface orientation change to ensure
         // all cells re-render with the correct dimensions.
-        context.coordinator.orientationObserver = NotificationCenter.default.addObserver(
-            forName: UIDevice.orientationDidChangeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak tableView] _ in
+        context.coordinator.orientationObserver = MainActorNotificationObserver(
+            name: UIDevice.orientationDidChangeNotification
+        ) { [weak tableView] in
             let orientation = UIDevice.current.orientation
             guard orientation.isPortrait || orientation.isLandscape else { return }
             guard let tableView else { return }
@@ -219,19 +215,10 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
         }
 
         let prevSections = coordinator.sections
-        let splitInfo = await performSplitInBackground(prevSections, sections)
+        let splitInfo = await MessageListDiff.splitInBackground(prevSections, sections)
         ChatRedrawDebug.log("UIList.applyUpdates: deletes=\(splitInfo.deleteOperations.count) swaps=\(splitInfo.swapOperations.count) edits=\(splitInfo.editOperations.count) inserts=\(splitInfo.insertOperations.count) — edits/swaps reconfigure existing cells (flash source)")
         await applyUpdatesToTable(tableView, splitInfo: splitInfo) {
             coordinator.sections = $0
-        }
-    }
-
-    nonisolated private func performSplitInBackground(_  prevSections:  [MessagesSection], _ sections: [MessagesSection]) async -> SplitInfo {
-        await withCheckedContinuation { continuation in
-            Task.detached {
-                let result = operationsSplit(oldSections: prevSections, newSections: sections)
-                continuation.resume(returning: result)
-            }
         }
     }
 
@@ -345,32 +332,8 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
 
     // MARK: - Operations
 
-    enum Operation {
-        case deleteSection(Int)
-        case insertSection(Int)
-
-        case delete(Int, Int) // delete with animation
-        case insert(Int, Int) // insert with animation
-        case swap(Int, Int, Int) // delete first with animation, then insert it into new position with animation. do not do anything with the second for now
-        case edit(Int, Int) // reload the element without animation
-
-        var description: String {
-            switch self {
-            case .deleteSection(let int):
-                return "deleteSection \(int)"
-            case .insertSection(let int):
-                return "insertSection \(int)"
-            case .delete(let int, let int2):
-                return "delete section \(int) row \(int2)"
-            case .insert(let int, let int2):
-                return "insert section \(int) row \(int2)"
-            case .swap(let int, let int2, let int3):
-                return "swap section \(int) rowFrom \(int2) rowTo \(int3)"
-            case .edit(let int, let int2):
-                return "edit section \(int) row \(int2)"
-            }
-        }
-    }
+    typealias Operation = MessageListDiff.Operation
+    typealias SplitInfo = MessageListDiff.SplitInfo
 
     func applyOperation(_ operation: Operation, tableView: UITableView) {
         switch operation {
@@ -389,106 +352,6 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
             tableView.deleteRows(at: [IndexPath(row: rowFrom, section: section)], with: .none)
             tableView.insertRows(at: [IndexPath(row: rowTo, section: section)], with: .none)
         }
-    }
-
-    private nonisolated func operationsSplit(oldSections: [MessagesSection], newSections: [MessagesSection]) -> SplitInfo {
-        var appliedDeletes = oldSections // start with old sections, remove rows that need to be deleted
-        var appliedDeletesSwapsAndEdits = newSections // take new sections and remove rows that need to be inserted for now, then we'll get array with all the changes except for inserts
-        // appliedDeletesSwapsEditsAndInserts == newSection
-
-        var deleteOperations = [Operation]()
-        var swapOperations = [Operation]()
-        var editOperations = [Operation]()
-        var insertOperations = [Operation]()
-
-        // 1 compare sections
-
-        let oldDates = oldSections.map { $0.date }
-        let newDates = newSections.map { $0.date }
-        let commonDates = Array(Set(oldDates + newDates)).sorted(by: >)
-        for date in commonDates {
-            let oldIndex = appliedDeletes.firstIndex(where: { $0.date == date } )
-            let newIndex = appliedDeletesSwapsAndEdits.firstIndex(where: { $0.date == date } )
-            if oldIndex == nil, let newIndex {
-                // operationIndex is not the same as newIndex because appliedDeletesSwapsAndEdits is being changed as we go, but to apply changes to UITableView we should have initial index
-                if let operationIndex = newSections.firstIndex(where: { $0.date == date } ) {
-                    appliedDeletesSwapsAndEdits.remove(at: newIndex)
-                    insertOperations.append(.insertSection(operationIndex))
-                }
-                continue
-            }
-            if newIndex == nil, let oldIndex {
-                if let operationIndex = oldSections.firstIndex(where: { $0.date == date } ) {
-                    appliedDeletes.remove(at: oldIndex)
-                    deleteOperations.append(.deleteSection(operationIndex))
-                }
-                continue
-            }
-            guard let newIndex, let oldIndex else { continue }
-
-            // 2 compare section rows
-            // isolate deletes and inserts, and remove them from row arrays, leaving only rows that are in both arrays: 'duplicates'
-            // this will allow to compare relative position changes of rows - swaps
-
-            var oldRows = appliedDeletes[oldIndex].rows
-            var newRows = appliedDeletesSwapsAndEdits[newIndex].rows
-            let oldRowIDs = oldRows.map { $0.id }
-            let newRowIDs = newRows.map { $0.id }
-            let rowIDsToDelete = oldRowIDs.filter { !newRowIDs.contains($0) }.reversed()
-            let rowIDsToInsert = newRowIDs.filter { !oldRowIDs.contains($0) }
-            for rowId in rowIDsToDelete {
-                if let index = oldRows.firstIndex(where: { $0.id == rowId }) {
-                    oldRows.remove(at: index)
-                    deleteOperations.append(.delete(oldIndex, index)) // this row was in old section, should not be in final result
-                }
-            }
-            for rowId in rowIDsToInsert {
-                if let index = newRows.firstIndex(where: { $0.id == rowId }) {
-                    // this row was not in old section, should add it to final result
-                    insertOperations.append(.insert(newIndex, index))
-                }
-            }
-
-            for rowId in rowIDsToInsert {
-                if let index = newRows.firstIndex(where: { $0.id == rowId }) {
-                    // remove for now, leaving only 'duplicates'
-                    newRows.remove(at: index)
-                }
-            }
-
-            // 3 isolate swaps and edits
-
-            for i in 0..<oldRows.count {
-                let oldRow = oldRows[i]
-                let newRow = newRows[i]
-                if oldRow.id != newRow.id { // a swap: rows in same position are not actually the same rows
-                    if let index = newRows.firstIndex(where: { $0.id == oldRow.id }) {
-                        if !swapsContain(swaps: swapOperations, section: oldIndex, index: i) ||
-                            !swapsContain(swaps: swapOperations, section: oldIndex, index: index) {
-                            swapOperations.append(.swap(oldIndex, i, index))
-                        }
-                    }
-                } else if oldRow != newRow { // same ids om same positions but something changed - reload rows without animation
-                    editOperations.append(.edit(oldIndex, i))
-                }
-            }
-
-            // 4 store row changes in sections
-
-            appliedDeletes[oldIndex].rows = oldRows
-            appliedDeletesSwapsAndEdits[newIndex].rows = newRows
-        }
-
-        return SplitInfo(appliedDeletes: appliedDeletes, appliedDeletesSwapsAndEdits: appliedDeletesSwapsAndEdits, deleteOperations: deleteOperations, swapOperations: swapOperations, editOperations: editOperations, insertOperations: insertOperations)
-    }
-
-    private nonisolated func swapsContain(swaps: [Operation], section: Int, index: Int) -> Bool {
-        swaps.filter {
-            if case let .swap(section, rowFrom, rowTo) = $0 {
-                return section == section && (rowFrom == index || rowTo == index)
-            }
-            return false
-        }.count > 0
     }
 
     // MARK: - Coordinator
@@ -592,24 +455,11 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
             }
         }
 
-        deinit {
-            if let observer = scrollToBottomObserver {
-                NotificationCenter.default.removeObserver(observer)
-            }
-            if let observer = scrollToMessageObserver {
-                NotificationCenter.default.removeObserver(observer)
-            }
-            if let observer = orientationObserver {
-                NotificationCenter.default.removeObserver(observer)
-            }
-        }
-
-        /// Observer token for scroll-to-bottom notification, removed in deinit
-        var scrollToBottomObserver: NSObjectProtocol?
-        /// Observer token for scroll-to-message notification, removed in deinit
-        var scrollToMessageObserver: NSObjectProtocol?
-        /// Observer token for device orientation change, removed in deinit
-        var orientationObserver: NSObjectProtocol?
+        // Releasing these owners unregisters the observers without accessing
+        // non-Sendable Objective-C tokens from the coordinator's deinit.
+        var scrollToBottomObserver: MainActorNotificationObserver?
+        var scrollToMessageObserver: MainActorNotificationObserver?
+        var orientationObserver: MainActorNotificationObserver?
 
         /// call pagination handler when this row is reached
         /// without this there is a bug: during new cells insertion willDisplay is called one extra time for the cell which used to be the last one while it is being updated (its position in group is changed from first to middle)
@@ -795,21 +645,11 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
     }
 }
 
-extension UIList {
-    struct SplitInfo: @unchecked Sendable {
-        let appliedDeletes: [MessagesSection]
-        let appliedDeletesSwapsAndEdits: [MessagesSection]
-        let deleteOperations: [Operation]
-        let swapOperations: [Operation]
-        let editOperations: [Operation]
-        let insertOperations: [Operation]
-    }
-}
-
-actor UpdateQueue {
+@MainActor
+final class UpdateQueue {
     private var isProcessing = false
 
-    func enqueue(_ work: @escaping @Sendable () async -> Void) async {
+    func enqueue(_ work: @escaping @MainActor () async -> Void) async {
         while isProcessing {
             await Task.yield() // Wait for previous task to finish
         }

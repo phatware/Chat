@@ -8,8 +8,6 @@ import ImageIO
 
 /// Configure and manage Kingfisher image cache.
 public enum ImageCacheManager {
-    private static var configured = false
-
     /// Configure Kingfisher cache limits (called once automatically).
     ///
     /// Important: chat attachment cells are backed by `UITableView` cells with
@@ -26,8 +24,11 @@ public enum ImageCacheManager {
     /// is safe; we only stop time-based and count-based eviction of items
     /// that are still actively on screen.
     static func ensureConfigured() {
-        guard !configured else { return }
-        configured = true
+        _ = configureCache
+    }
+
+    // Static let initialization is synchronized and runs only once.
+    private static let configureCache: Void = {
         // Cap memory cache at 200 MB (cost is in bytes; honored via UIImage cost)
         ImageCache.default.memoryStorage.config.totalCostLimit = 200 * 1024 * 1024
         // Allow many images in memory so a busy chat doesn't evict on-screen cells
@@ -41,7 +42,7 @@ public enum ImageCacheManager {
         ImageCache.default.memoryStorage.config.cleanInterval = 600
         // Disable Kingfisher's disk cache — we already manage temp files ourselves
         ImageCache.default.diskStorage.config.sizeLimit = 0
-    }
+    }()
 
     /// Clear all images from Kingfisher's in-memory cache.
     /// Call on a memory warning to free every decoded bitmap immediately; images

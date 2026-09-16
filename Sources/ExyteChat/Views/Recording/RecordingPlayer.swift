@@ -127,7 +127,7 @@ final actor RecordingPlayer: ObservableObject {
         let playerItem = AVPlayerItem(url: url)
         player = AVPlayer(playerItem: playerItem)
         
-        NotificationCenter.default.addObserver(forName: .chatAudioIsPlaying, object: nil, queue: nil) { notification in
+        NotificationCenter.default.addObserver(forName: .chatAudioIsPlaying, object: nil, queue: nil) { [weak self] notification in
             if let sender = notification.object as? RecordingPlayer {
                 Task { [weak self] in
                     if await sender.recording?.url == self?.recording?.url {
@@ -142,7 +142,7 @@ final actor RecordingPlayer: ObservableObject {
             forName: .AVPlayerItemDidPlayToEndTime,
             object: playerItem,
             queue: nil
-        ) { _ in
+        ) { [weak self] _ in
             Task { [weak self] in
                 await self?.setPlayingState(false)
                 await self?.player?.seek(to: .zero)
@@ -153,7 +153,7 @@ final actor RecordingPlayer: ObservableObject {
         timeObserver = player?.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 0.2, preferredTimescale: 10),
             queue: nil
-        ) { time in
+        ) { [weak self] time in
             Task { [weak self] in
                 guard let self, let item = await self.player?.currentItem, !item.duration.seconds.isNaN else { return }
                 await MainActor.run {

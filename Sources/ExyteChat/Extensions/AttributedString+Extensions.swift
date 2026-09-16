@@ -57,7 +57,7 @@ extension AttributedString {
 
 public extension AttributedString {
     var urls: [URL] {
-        runs[\.link].map { (link, range) in
+        runs[AttributeScopes.FoundationAttributes.LinkAttribute.self].map { (link, _) in
             link?.absoluteURL
         }
         .compactMap { $0 }

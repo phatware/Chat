@@ -25,6 +25,7 @@ public extension ChatView {
 }
 
 protocol SwipeActionable {
+    @MainActor
     func render(type: ChatType) -> UIImage
     var action: (Message, @escaping (Message, DefaultMessageMenuAction) -> Void) -> Void { get }
     var activeFor: (Message) -> Bool { get }

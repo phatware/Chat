@@ -32,7 +32,7 @@ public struct QuickLookPreview: UIViewControllerRepresentable {
 
     public func updateUIViewController(_ uiViewController: UINavigationController, context: Context) {}
 
-    public class Coordinator: NSObject, QLPreviewControllerDataSource, QLPreviewControllerDelegate {
+    public class Coordinator: NSObject, QLPreviewControllerDataSource, @preconcurrency QLPreviewControllerDelegate {
         let url: URL
         let onDismiss: (() -> Void)?
 

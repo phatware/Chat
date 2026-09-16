@@ -55,7 +55,7 @@ public extension EnvironmentValues {
 // Define keys only for older versions
 #if swift(<6.0)
 @preconcurrency public struct ChatThemeKey: EnvironmentKey {
-    public static let defaultValue = ChatTheme()
+    public static var defaultValue: ChatTheme { ChatTheme() }
 }
 
 #if GIPHY_UISDK
@@ -65,11 +65,11 @@ public struct GiphyConfigurationKey: EnvironmentKey {
 #endif
 
 public struct ChatInputAccessoryKey: EnvironmentKey {
-    public static let defaultValue: ChatInputAccessoryConfiguration? = nil
+    public static var defaultValue: ChatInputAccessoryConfiguration? { nil }
 }
 
 public struct ChatMessageBodyRendererKey: EnvironmentKey {
-    public static let defaultValue: ChatMessageBodyRenderer? = nil
+    public static var defaultValue: ChatMessageBodyRenderer? { nil }
 }
 #endif
 

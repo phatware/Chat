@@ -143,7 +143,10 @@ struct MessageTextView: View {
 
     var styledText: AttributedString {
         var result = displayText.styled(using: messageStyler)
-        result.foregroundColor = theme.colors.messageText(userType)
+        // Typed attributes avoid capturing non-Sendable dynamic-member key paths
+        // in optimized builds with Swift 6.4.
+        let linkAttribute = AttributeScopes.FoundationAttributes.LinkAttribute.self
+        result[AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute.self] = theme.colors.messageText(userType)
 
         // Detect plain-text URLs that the styler didn't already mark as links
         let plainString = String(result.characters)
@@ -154,18 +157,18 @@ struct MessageTextView: View {
                       let attrRange = Range(matchRange, in: result),
                       let url = match.url else { continue }
                 // Only add link if the styler hasn't already set one
-                if result[attrRange].link == nil {
+                if result[attrRange][linkAttribute] == nil {
                     let scheme = url.scheme?.lowercased() ?? ""
                     if scheme == "http" || scheme == "https" || scheme == "mailto" {
-                        result[attrRange].link = url
+                        result[attrRange][linkAttribute] = url
                     }
                 }
             }
         }
 
-        for (link, range) in result.runs[\.link] {
+        for (link, range) in result.runs[linkAttribute] {
             if link != nil {
-                result[range].underlineStyle = .single
+                result[range][AttributeScopes.SwiftUIAttributes.UnderlineStyleAttribute.self] = .single
             }
         }
 

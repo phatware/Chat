@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 
 import PackageDescription
 
@@ -34,13 +34,11 @@ let package = Package(
                 .product(name: "ExyteMediaPicker", package: "ExyteMediaPicker"),
                 .product(name: "ActivityIndicatorView", package: "ActivityIndicatorView"),
                 .product(name: "Kingfisher", package: "Kingfisher")
-            ],
-            swiftSettings: [
-                .enableExperimentalFeature("StrictConcurrency")
             ]
         ),
         .testTarget(
             name: "ExyteChatTests",
             dependencies: ["ExyteChat"]),
-    ]
+    ],
+    swiftLanguageModes: [.v6]
 )
