@@ -55,7 +55,7 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
     @State var updateQueue = UpdateQueue()
 
     func makeUIView(context: Context) -> UITableView {
-        let tableView = UITableView(frame: .zero, style: .grouped)
+        let tableView = WidthTrackingTableView(frame: .zero, style: .grouped)
         tableView.translatesAutoresizingMaskIntoConstraints = false
         tableView.separatorStyle = .none
         tableView.dataSource = context.coordinator
@@ -144,21 +144,6 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
         DispatchQueue.main.async {
             shouldScrollToTop = {
                 tableView.contentOffset = CGPoint(x: 0, y: tableView.contentSize.height - tableView.frame.height)
-            }
-        }
-
-        // On devices where rotation doesn't change the horizontal size class (e.g. iPhone Pro),
-        // SwiftUI won't propagate an environment change to UIHostingConfiguration cells, so they
-        // keep their old portrait layout. Force-reload on interface orientation change to ensure
-        // all cells re-render with the correct dimensions.
-        context.coordinator.orientationObserver = MainActorNotificationObserver(
-            name: UIDevice.orientationDidChangeNotification
-        ) { [weak tableView] in
-            let orientation = UIDevice.current.orientation
-            guard orientation.isPortrait || orientation.isLandscape else { return }
-            guard let tableView else { return }
-            UIView.performWithoutAnimation {
-                tableView.reloadData()
             }
         }
 
@@ -459,7 +444,6 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
         // non-Sendable Objective-C tokens from the coordinator's deinit.
         var scrollToBottomObserver: MainActorNotificationObserver?
         var scrollToMessageObserver: MainActorNotificationObserver?
-        var orientationObserver: MainActorNotificationObserver?
 
         /// call pagination handler when this row is reached
         /// without this there is a bug: during new cells insertion willDisplay is called one extra time for the cell which used to be the last one while it is being updated (its position in group is changed from first to middle)
@@ -657,5 +641,40 @@ final class UpdateQueue {
         isProcessing = true
         await work()
         isProcessing = false
+    }
+}
+
+/// Reloads its rows whenever its width changes.
+///
+/// UIHostingConfiguration cells keep the layout they were measured at when the
+/// table's width changes without a SwiftUI environment change (e.g. rotating an
+/// iPhone Pro, resizing an iPad window, showing or hiding the split view sidebar,
+/// folding or unfolding a device). Keying the reload off the width itself covers
+/// all of these; a device-orientation notification only covers rotation.
+private final class WidthTrackingTableView: UITableView {
+    private var lastLaidOutWidth: CGFloat = 0
+    private var isReloadScheduled = false
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+
+        let width = bounds.width
+        guard width != lastLaidOutWidth else { return }
+        let previousWidth = lastLaidOutWidth
+        lastLaidOutWidth = width
+
+        // The first real layout creates cells at the right width; nothing is stale yet.
+        guard previousWidth > 0, !isReloadScheduled else { return }
+
+        // Reload outside the layout pass. A live window resize changes the width
+        // on every frame, so this also coalesces to one reload per run-loop turn.
+        isReloadScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            isReloadScheduled = false
+            UIView.performWithoutAnimation {
+                self.reloadData()
+            }
+        }
     }
 }

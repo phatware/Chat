@@ -205,15 +205,15 @@ struct AttachmentsEditor<InputViewContent: View>: View {
 
     var albumSelectionHeaderView: some View {
         ZStack {
+            // Cancel sits on the trailing edge: in an iPadOS window the window
+            // controls cover the top-leading corner.
             HStack {
-                Button {
+                Spacer()
+
+                cancelButton {
                     selectedMedias = []
                     inputViewModel.showPicker = false
-                } label: {
-                    Text(localization.cancelButtonText)
                 }
-
-                Spacer()
             }
 
             HStack {
@@ -221,6 +221,7 @@ struct AttachmentsEditor<InputViewContent: View>: View {
                 Image(systemName: "chevron.down")
                     .rotationEffect(Angle(radians: showingAlbums ? .pi : 0))
             }
+            .foregroundColor(mediaPickerTheme.main.pickerText)
             .onTapGesture {
                 withAnimation {
                     inputViewModel.mediaPickerMode = showingAlbums ? .photos : .albums
@@ -228,20 +229,12 @@ struct AttachmentsEditor<InputViewContent: View>: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .foregroundColor(mediaPickerTheme.main.pickerText)
         .padding(.horizontal)
         .padding(.bottom, 5)
     }
 
     func cameraSelectionHeaderView(closeClosure: @escaping ()->()) -> some View {
         HStack {
-            Button(action: closeClosure) {
-                theme.images.mediaPicker.cross
-                    .imageScale(.large)
-            }
-            .tint(mediaPickerTheme.main.pickerText)
-            .padding(.trailing, 30)
-
             if let chatTitle = chatTitle {
                 theme.images.mediaPicker.chevronRight
                 Text(chatTitle)
@@ -250,7 +243,19 @@ struct AttachmentsEditor<InputViewContent: View>: View {
             }
 
             Spacer()
+
+            // Trailing for the same reason as in `albumSelectionHeaderView`.
+            cancelButton(action: closeClosure)
         }
         .padding(.horizontal)
+    }
+
+    /// The picker's dismiss button, styled like the host app's header buttons.
+    func cancelButton(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(localization.cancelButtonText)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(.accentColor)
     }
 }
