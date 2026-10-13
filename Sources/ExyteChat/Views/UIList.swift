@@ -584,6 +584,11 @@ struct UIList<MessageContent: View, InputView: View>: UIViewRepresentable {
                         // Launch the message menu
                         self.viewModel.messageMenuRow = row
                     }
+                    // Long-press isn't discoverable with VoiceOver; expose the
+                    // same menu through the Actions rotor.
+                    .accessibilityAction(named: "Message actions") {
+                        self.viewModel.messageMenuRow = row
+                    }
                 }
             }
             .minSize(width: 0, height: 0)

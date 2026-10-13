@@ -48,8 +48,17 @@ struct ExpirationCountdownView: View {
                 .foregroundColor(.red)
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
+                // "5m" would be spoken as "5 meters".
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Expires in \(spokenRemaining(remaining))")
             }
         }
+    }
+
+    private func spokenRemaining(_ seconds: TimeInterval) -> String {
+        guard seconds >= 60 else { return "less than a minute" }
+        let minutes = Int((seconds + 29) / 60)
+        return Duration.seconds(minutes * 60).formatted(.units(allowed: [.hours, .minutes], width: .wide))
     }
 
     private func formatRemaining(_ seconds: TimeInterval) -> String {

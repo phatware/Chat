@@ -208,20 +208,29 @@ struct MessageTextView: View {
         // pass the (possibly truncated) `displayText` so long agent replies
         // collapse the same way long plain-text messages do.
         if let renderer = customBodyRenderer, let customView = renderer(displayText, userType) {
+            // No label override here: the renderer builds its own accessible
+            // views (paragraphs, approval buttons, math images). A label on
+            // this container would replace all of that with raw markdown.
             customView
                 .contentShape(Rectangle())
-                .accessibilityLabel(displayText)
                 .applyIf(shouldTruncate) {
                     $0.onTapGesture {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             isExpanded.toggle()
                         }
                     }
+                    .accessibilityAction(named: isExpanded ? "Show less" : "Show full message") {
+                        isExpanded.toggle()
+                    }
                 }
         } else {
             renderedText
                 .contentShape(Rectangle())
-                .accessibilityLabel(displayText)
+                // Replaces the invisible timestamp reservation in `renderedText`.
+                // Reads the full styled text, so VoiceOver gets neither markdown
+                // syntax nor the visual truncation (tap-to-expand isn't
+                // discoverable without sight).
+                .accessibilityLabel(String(text.styled(using: messageStyler).characters))
                 .environment(\.openURL, OpenURLAction { url in
                     let scheme = url.scheme?.lowercased() ?? ""
                     if scheme == "http" || scheme == "https" || scheme == "mailto" {

@@ -241,6 +241,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                         inputViewModel.errorMessage = nil
                         onUpgradeRequested?()
                     }
+                    .tint(.accentColor)
                 }
                 Button(canOfferUpgrade ? "Cancel" : "OK", role: .cancel) {
                     inputViewModel.errorMessage = nil
@@ -389,6 +390,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                             .foregroundStyle(theme.colors.sendButtonBackground)
                             .shadow(color: .primary.opacity(0.1), radius: 2, y: 1)
                     }
+                    .accessibilityLabel("Scroll to latest message")
                     .padding(.trailing, MessageView.horizontalScreenEdgePadding)
                     .padding(.bottom, 8)
                 }

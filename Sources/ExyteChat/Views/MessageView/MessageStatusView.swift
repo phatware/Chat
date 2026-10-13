@@ -30,6 +30,10 @@ struct MessageStatusView: View {
                 statusImageStyled(image: Image(systemName: "xmark"), color: getTheme().colors.statusGray)
             }
         }
+        // The status glyphs are bundle assets, so without a label VoiceOver
+        // reads their file names ("sending", "read", …).
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint(accessibilityHint)
         .viewSize(MessageView.statusViewSize)
         .padding(.trailing, MessageView.horizontalStatusPadding)
     }
@@ -42,6 +46,22 @@ struct MessageStatusView: View {
             .aspectRatio(contentMode: .fit)
             .foregroundColor(color)
             .frame(width: 40)
+    }
+
+    private var accessibilityLabel: Text {
+        switch status {
+        case .sending: Text("Sending")
+        case .sent: Text("Sent")
+        case .delivered: Text("Delivered")
+        case .read: Text("Read")
+        case .error: Text("Not sent")
+        case .deletedByPeer: Text("Deleted by recipient")
+        }
+    }
+
+    private var accessibilityHint: Text {
+        if case .error = status { return Text("Double-tap to retry") }
+        return Text("")
     }
 
     @MainActor

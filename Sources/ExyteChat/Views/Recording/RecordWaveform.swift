@@ -47,6 +47,8 @@ struct RecordWaveformWithButtons: View {
                     await recordPlayer.togglePlay(recording)
                 }
             }
+            .accessibilityLabel(recordPlayer.playing ? "Pause voice message" : "Play voice message")
+            .accessibilityAddTraits(.isButton)
 
             VStack(alignment: .leading, spacing: 5) {
                 RecordWaveformPlaying(samples: recording.waveformSamples, progress: recordPlayer.progress, color: colorWaveform, addExtraDots: false) { progress in
@@ -54,6 +56,8 @@ struct RecordWaveformWithButtons: View {
                         await recordPlayer.seek(with: recording, to: progress)
                     }
                 }
+                // Drag-to-seek only; the play button and duration carry the meaning.
+                .accessibilityHidden(true)
                 Text(DateFormatter.timeString(duration))
                     .font(.caption2)
                     .monospacedDigit()

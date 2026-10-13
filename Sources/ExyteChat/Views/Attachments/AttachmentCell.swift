@@ -104,6 +104,34 @@ public struct AttachmentCell: View {
             // Only add tap gesture for non-file attachments (and GIF files treated as images)
             // Other FileAttachmentView types handle their own tap gesture
             $0.simultaneousGesture(attachmentTapGesture)
+                // One VoiceOver element per thumbnail; otherwise the bare image
+                // and the overlay glyphs (bundle assets) are read by file name.
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(accessibilityLabel)
+                .accessibilityAddTraits(.isImage)
+                .accessibilityAction { accessibilityActivate() }
+        }
+    }
+
+    private var accessibilityLabel: Text {
+        let kind = attachment.isGIF ? "GIF" : (attachment.type == .video ? "Video" : "Photo")
+        switch attachment.fullUploadStatus {
+        case .inProgress?: return Text("\(kind), uploading")
+        case .cancelled?: return Text("\(kind), upload cancelled")
+        case .error?: return Text("\(kind), upload failed")
+        case .complete?, nil: return Text(kind)
+        }
+    }
+
+    /// Mirrors `attachmentTapGesture` for the VoiceOver double-tap.
+    private func accessibilityActivate() {
+        switch attachment.fullUploadStatus {
+        case .cancelled?, .error?:
+            return
+        case .inProgress?:
+            if showCancel { onTap(attachment, true) }
+        case .complete?, nil:
+            onTap(attachment, false)
         }
     }
 

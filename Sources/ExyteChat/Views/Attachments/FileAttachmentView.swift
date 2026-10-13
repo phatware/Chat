@@ -23,6 +23,7 @@ public struct FileAttachmentView: View {
             fileIcon
                 .font(.system(size: 28))
                 .foregroundColor(.gray)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(fileName)
@@ -43,6 +44,8 @@ public struct FileAttachmentView: View {
         .onTapGesture {
             onTap?()
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
     }
 
     private var fileExtension: String {

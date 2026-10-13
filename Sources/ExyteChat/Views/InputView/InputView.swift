@@ -244,6 +244,7 @@ struct InputView: View {
                     .padding(5)
                     .background(Circle().foregroundStyle(.red))
             }
+            .accessibilityLabel("Cancel editing")
 
             Button {
                 onAction(.saveEdit)
@@ -254,6 +255,7 @@ struct InputView: View {
                     .padding(5)
                     .background(Circle().foregroundStyle(.green))
             }
+            .accessibilityLabel("Save edit")
         }
     }
 
@@ -274,6 +276,7 @@ struct InputView: View {
                     .frame(width: 36, height: 36)
                     .background(Circle().fill(Color.red))
             }
+            .accessibilityLabel("Stop recording")
             .viewSize(48)
         }
         else if state.canSend {
@@ -312,6 +315,7 @@ struct InputView: View {
 
                     HStack {
                         theme.images.reply.replyToMessage
+                            .accessibilityHidden(true)
                         Capsule()
                             .foregroundColor(theme.colors.messageMyBG)
                             .frame(width: 2)
@@ -341,12 +345,15 @@ struct InputView: View {
                             theme.images.inputView.microphone
                                 .renderingMode(.template)
                                 .foregroundColor(theme.colors.mainTint)
+                                .accessibilityLabel("Voice message")
                         }
 
                         theme.images.reply.cancelReply
                             .onTapGesture {
                                 viewModel.attachments.replyMessage = nil
                             }
+                            .accessibilityLabel("Cancel reply")
+                            .accessibilityAddTraits(.isButton)
                     }
                     .padding(.horizontal, 26)
                 }
@@ -397,6 +404,8 @@ struct InputView: View {
                     .onTapGesture {
                         viewModel.setFile(nil)
                     }
+                    .accessibilityLabel("Remove attachment")
+                    .accessibilityAddTraits(.isButton)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -481,6 +490,7 @@ struct InputView: View {
                     .foregroundColor(theme.colors.mainTint)
                     .padding(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 8))
             }
+            .accessibilityLabel("Attach")
         }
     }
 
@@ -524,6 +534,7 @@ struct InputView: View {
                 .viewSize(48)
                 .circleBackground(theme.colors.sendButtonBackground)
         }
+        .accessibilityLabel("Send")
     }
 
     var recordButton: some View {
@@ -545,6 +556,7 @@ struct InputView: View {
                 .foregroundColor(theme.colors.mainTint)
                 .padding(EdgeInsets(top: 12, leading: 8, bottom: 12, trailing: 12))
         }
+        .accessibilityLabel("Record voice message")
         .frameGetter($recordButtonFrame)
     }
 
@@ -556,6 +568,7 @@ struct InputView: View {
                 .viewSize(24)
                 .padding(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 8))
         }
+        .accessibilityLabel("Delete recording")
         .frameGetter($deleteRecordFrame)
     }
 
@@ -654,6 +667,7 @@ struct InputView: View {
         } label: {
             theme.images.recordAudio.playRecord
         }
+        .accessibilityLabel("Play recording")
         .foregroundColor(theme.colors.sendButtonBackground)
     }
 
@@ -663,6 +677,7 @@ struct InputView: View {
         } label: {
             theme.images.recordAudio.pauseRecord
         }
+        .accessibilityLabel("Pause recording")
         .foregroundColor(theme.colors.sendButtonBackground)
     }
 
@@ -802,6 +817,7 @@ struct MediaAttachmentPreview: View {
                             }
                     }
                 }
+                .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(media.type == .video ? "Video" : "Photo")
@@ -823,6 +839,8 @@ struct MediaAttachmentPreview: View {
                     .onTapGesture {
                         onRemove()
                     }
+                    .accessibilityLabel("Remove attachment")
+                    .accessibilityAddTraits(.isButton)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)

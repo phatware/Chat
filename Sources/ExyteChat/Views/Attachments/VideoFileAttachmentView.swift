@@ -30,6 +30,7 @@ public struct VideoFileAttachmentView: View {
                 .frame(width: 60, height: 60)
                 .background(Color.primary.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                .accessibilityHidden(true)
 
             // File info
             VStack(alignment: .leading, spacing: 2) {
@@ -52,6 +53,8 @@ public struct VideoFileAttachmentView: View {
         .onTapGesture {
             onTap?()
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
         .task {
             await generateThumbnail()
         }
