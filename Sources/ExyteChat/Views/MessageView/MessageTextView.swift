@@ -32,6 +32,8 @@ struct MessageTextView: View {
     let shouldShowLinkPreview: (URL) -> Bool
     let messageLinkPreviewLimit: Int
     let trailingReservedText: Text?
+    /// Passed to the host body renderer.
+    var messageId: String = ""
 
     /// Whether the text exceeds the truncation limit
     private var shouldTruncate: Bool {
@@ -207,7 +209,7 @@ struct MessageTextView: View {
         // the same truncation/expand contract the default Text path uses —
         // pass the (possibly truncated) `displayText` so long agent replies
         // collapse the same way long plain-text messages do.
-        if let renderer = customBodyRenderer, let customView = renderer(displayText, userType) {
+        if let renderer = customBodyRenderer, let customView = renderer(displayText, userType, messageId) {
             // No label override here: the renderer builds its own accessible
             // views (paragraphs, approval buttons, math images). A label on
             // this container would replace all of that with raw markdown.

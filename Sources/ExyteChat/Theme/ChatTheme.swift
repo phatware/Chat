@@ -17,7 +17,9 @@ import SwiftUI
 /// - Parameter text: raw message body, exactly as stored.
 /// - Parameter userType: `.current` for the local user's outgoing message,
 ///   `.other` for an incoming peer message.
-public typealias ChatMessageBodyRenderer = @MainActor (_ text: String, _ userType: UserType) -> AnyView?
+/// - Parameter messageId: the message's id, for hosts that render per-message
+///   content (the text may be the collapsed preview of a long message).
+public typealias ChatMessageBodyRenderer = @MainActor (_ text: String, _ userType: UserType, _ messageId: String) -> AnyView?
 
 public extension EnvironmentValues {
     #if swift(>=6.0)

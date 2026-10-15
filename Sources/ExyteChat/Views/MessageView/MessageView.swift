@@ -246,7 +246,8 @@ struct MessageView: View {
                 MessageTextView(
                     text: message.text, messageStyler: messageStyler,
                     userType: message.user.type, shouldShowLinkPreview: shouldShowLinkPreview,
-                    messageLinkPreviewLimit: messageLinkPreviewLimit, trailingReservedText: nil
+                    messageLinkPreviewLimit: messageLinkPreviewLimit, trailingReservedText: nil,
+                    messageId: message.id
                 )
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, MessageView.horizontalTextPadding)
@@ -334,7 +335,8 @@ struct MessageView: View {
             text: message.text, messageStyler: messageStyler,
             userType: message.user.type, shouldShowLinkPreview: shouldShowLinkPreview,
             messageLinkPreviewLimit: messageLinkPreviewLimit,
-            trailingReservedText: shouldStackTimeBelowText ? nil : trailingTimestampReservationText
+            trailingReservedText: shouldStackTimeBelowText ? nil : trailingTimestampReservationText,
+            messageId: message.id
         )
         .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, MessageView.horizontalTextPadding)
