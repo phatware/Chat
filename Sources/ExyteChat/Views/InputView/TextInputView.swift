@@ -41,12 +41,21 @@ struct TextInputView: View {
             onPasteFileData: onPasteFileData
         )
         .fixedSize(horizontal: false, vertical: true)
-        .padding(.vertical, 10)
-        .padding(.leading, !hasLeadingButton() ? 12 : 0)
+        // One line fills the 44 pt message row.
+        .padding(.vertical, style == .message ? 7 : 10)
+        .padding(.leading, leadingPadding)
+    }
+
+    /// The message field's buttons sit outside it, so it always pads its
+    /// own text. The signature field pads only when no button leads it.
+    private var leadingPadding: CGFloat {
+        switch style {
+        case .message: 16
+        case .signature: hasLeadingButton() ? 0 : 12
+        }
     }
 
     /// Whether a button sits to the left of the field (attachment menu or giphy).
-    /// When every leading button is hidden the field supplies its own padding.
     private func hasLeadingButton() -> Bool {
         return availableInputs.contains(AvailableInputType.media)
         || availableInputs.contains(AvailableInputType.files)

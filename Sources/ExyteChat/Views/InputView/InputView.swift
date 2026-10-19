@@ -126,26 +126,25 @@ struct InputView: View {
         }
     }
 
+    /// Height of the single-line composer row: the `+` button and the field.
+    static let messageRowHeight: CGFloat = 44
+
     var body: some View {
         VStack {
             viewOnTop
-            HStack(alignment: inputBarAlignment, spacing: 10) {
-                HStack(alignment: inputBarAlignment, spacing: 0) {
-                    leftView
-                    middleView
-                    rightView
-                }
-                .background {
-                    RoundedRectangle(cornerRadius: 18)
-                        .fill(style == .message ? theme.colors.inputBG : theme.colors.inputSignatureBG)
-                }
-
-                rightOutsideButton
+            switch style {
+            case .message:
+                messageBar
+            case .signature:
+                signatureBar
             }
-            .padding(.horizontal, MessageView.horizontalScreenEdgePadding)
-            .padding(.vertical, 8)
         }
-        .background(backgroundColor)
+        .background {
+            // The message bar dips into the home-indicator band on iOS 26+,
+            // so its backdrop continues to the bottom edge.
+            backgroundColor
+                .ignoresSafeArea(.container, edges: style == .message ? .bottom : [])
+        }
         .onAppear {
             viewModel.recordingPlayer = recordingPlayer
             viewModel.setRecorderSettings(recorderSettings: recorderSettings)
@@ -159,6 +158,47 @@ struct InputView: View {
         }
     }
 
+    /// Messages-style composer: a `+` button beside a glass field that holds
+    /// the send button. The bar stays on an opaque backdrop (the transcript
+    /// doesn't scroll under it) and sits level with the system's bottom bars.
+    private var messageBar: some View {
+        HStack(alignment: .bottom, spacing: 8) {
+            attachMenuButton
+
+            HStack(alignment: inputBarAlignment, spacing: 0) {
+                leftView
+                middleView
+                rightView
+            }
+            .frame(minHeight: Self.messageRowHeight)
+            .inputBarGlass(
+                in: RoundedRectangle(cornerRadius: Self.messageRowHeight / 2, style: .continuous),
+                fallback: theme.colors.inputBG
+            )
+
+            rightOutsideButton
+        }
+        .chatInputBarPlacement(rowHeight: Self.messageRowHeight)
+    }
+
+    private var signatureBar: some View {
+        HStack(alignment: inputBarAlignment, spacing: 10) {
+            HStack(alignment: inputBarAlignment, spacing: 0) {
+                leftView
+                middleView
+                rightView
+            }
+            .background {
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(theme.colors.inputSignatureBG)
+            }
+
+            rightOutsideButton
+        }
+        .padding(.horizontal, MessageView.horizontalScreenEdgePadding)
+        .padding(.vertical, 8)
+    }
+
     @ViewBuilder
     var leftView: some View {
         if [.isRecordingTap, .isRecordingHold, .hasRecording, .playingRecording, .pausedRecording].contains(state) {
@@ -166,7 +206,8 @@ struct InputView: View {
         } else {
             switch style {
             case .message:
-                attachMenuButton
+                // The attachment menu is the `+` button beside the field.
+                EmptyView()
             case .signature:
                 if viewModel.mediaPickerMode == .cameraSelection {
                     addButton
@@ -223,9 +264,17 @@ struct InputView: View {
             case .isRecordingHold, .isRecordingTap:
                 recordDurationInProcess
             case .hasRecording:
-                recordDuration
+                HStack(spacing: 0) {
+                    recordDuration
+                    if style == .message { inlineSendButton }
+                }
             case .playingRecording, .pausedRecording:
-                recordDurationLeft
+                HStack(spacing: 0) {
+                    recordDurationLeft
+                    if style == .message { inlineSendButton }
+                }
+            case .hasTextOrMedia where style == .message:
+                inlineSendButton
             default:
                 Color.clear.frame(width: 8, height: 1)
             }
@@ -263,7 +312,7 @@ struct InputView: View {
     var rightOutsideButton: some View {
         if state == .editing {
             editingButtons
-                .frame(height: 48)
+                .frame(height: style == .message ? Self.messageRowHeight : 48)
         }
         else if [.isRecordingTap, .isRecordingHold].contains(state) {
             // Recording in progress - show simple stop button
@@ -277,10 +326,11 @@ struct InputView: View {
                     .background(Circle().fill(Color.red))
             }
             .accessibilityLabel("Stop recording")
-            .viewSize(48)
+            .viewSize(style == .message ? Self.messageRowHeight : 48)
         }
-        else if state.canSend {
-            // Has content to send - show send button
+        else if state.canSend && style == .signature {
+            // Has content to send - show send button (the message bar keeps
+            // it inside the field)
             sendButton
                 .viewSize(48)
         }
@@ -485,13 +535,36 @@ struct InputView: View {
                     }
                 }
             } label: {
-                Image(systemName: "paperclip")
-                    .font(.system(size: 20))
-                    .foregroundColor(theme.colors.mainTint)
-                    .padding(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 8))
+                Image(systemName: "plus")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .viewSize(Self.messageRowHeight)
+                    .contentShape(Circle())
             }
+            // A menu label takes the chat's tint; the `+` is drawn like
+            // Messages', in the label color.
+            .tint(.primary)
+            .inputBarGlass(in: Circle(), fallback: theme.colors.inputBG, interactive: true)
             .accessibilityLabel("Attach")
         }
+    }
+
+    /// Send, inside the field at its trailing end.
+    var inlineSendButton: some View {
+        Button {
+            onAction(.send)
+        } label: {
+            Image(systemName: "arrow.up")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(.white)
+                .viewSize(32)
+                .circleBackground(theme.colors.sendButtonBackground)
+                // 6 pt from the field's edge on every side.
+                .frame(width: Self.messageRowHeight - 4, height: Self.messageRowHeight)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel("Send")
+        .padding(.trailing, 2)
     }
 
     var giphyButton: some View {
@@ -554,7 +627,7 @@ struct InputView: View {
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 22, height: 22)
                 .foregroundColor(theme.colors.mainTint)
-                .padding(EdgeInsets(top: 12, leading: 8, bottom: 12, trailing: 12))
+                .padding(EdgeInsets(top: 11, leading: 8, bottom: 11, trailing: 12))
         }
         .accessibilityLabel("Record voice message")
         .frameGetter($recordButtonFrame)
@@ -566,7 +639,7 @@ struct InputView: View {
         } label: {
             theme.images.recordAudio.deleteRecord
                 .viewSize(24)
-                .padding(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 8))
+                .padding(EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 8))
         }
         .accessibilityLabel("Delete recording")
         .frameGetter($deleteRecordFrame)
