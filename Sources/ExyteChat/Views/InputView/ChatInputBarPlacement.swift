@@ -11,13 +11,13 @@ public extension View {
     /// Pads a composer row so it lines up with the system's bottom bars.
     ///
     /// iOS 26+ draws bottom bars — the search field, Messages' composer —
-    /// lower than the safe area, in the home-indicator band, with matching
-    /// side margins where the bar meets a window corner. iOS 27.1 reports
+    /// lower than the safe area, in the home-indicator band. iOS 27.1 reports
     /// that position (`UIView.LayoutRegion.bar`). On 26.0–27.0 it's derived
     /// from the safe area the way the system places the search field there
     /// (measured on iPhone 17e and 18 Pro: 27.8 pt above the edge with a
     /// 34 pt inset). With the keyboard up the row keeps a small gap above it
     /// instead. Before iOS 26 the row sits on the safe area, as it always has.
+    /// The sides keep a narrow margin, leaving the field room for text.
     ///
     /// The row's container must end at the bottom safe-area edge (the last
     /// view of a full-height stack, or a bottom `safeAreaInset`).
@@ -49,13 +49,13 @@ struct ChatInputBarPlacement: ViewModifier {
 
     /// Gap above the keyboard, and below the row when there's no bottom inset.
     private static let minimumGap: CGFloat = 8
-    /// Side margin away from window corners (matches the message bubbles).
-    private static let sideMargin = MessageView.horizontalScreenEdgePadding
+    /// Side margin. Narrower than Messages' (which matches the bottom gap)
+    /// so the field gets the width.
+    private static let sideMargin: CGFloat = 10
 
     func body(content: Content) -> some View {
         content
-            .padding(.leading, sidePadding(touchesEdge: metrics?.touchesLeadingEdge))
-            .padding(.trailing, sidePadding(touchesEdge: metrics?.touchesTrailingEdge))
+            .padding(.horizontal, Self.sideMargin)
             .padding(.top, Self.minimumGap)
             .padding(.bottom, bottomPadding)
             .background {
@@ -81,18 +81,6 @@ struct ChatInputBarPlacement: ViewModifier {
         return metrics.barBottomGap - metrics.safeAreaBottom
     }
 
-    /// The same margin as the bottom where the row meets a window corner,
-    /// the way Messages lays its composer out.
-    private func sidePadding(touchesEdge: Bool?) -> CGFloat {
-        guard #available(iOS 26.0, *),
-              touchesEdge == true,
-              let metrics,
-              metrics.safeAreaBottom > 0 else {
-            return Self.sideMargin
-        }
-        return max(Self.sideMargin, metrics.barBottomGap)
-    }
-
     /// Moves the row with the keyboard: SwiftUI animates the keyboard's safe
     /// area on the same curve.
     private func setKeyboardShown(_ shown: Bool, notification: Notification) {
@@ -110,8 +98,6 @@ struct BottomBarMetrics: Equatable {
     /// Where the system puts a bottom bar: its bottom edge's distance from
     /// the window's bottom edge.
     var barBottomGap: CGFloat
-    var touchesLeadingEdge: Bool
-    var touchesTrailingEdge: Bool
 }
 
 /// Reads the window geometry the placement needs from UIKit.
@@ -154,12 +140,9 @@ private struct BottomBarMetricsReader: UIViewRepresentable {
         func report() {
             guard let window, bounds.width > 0 else { return }
             let safeAreaBottom = window.safeAreaInsets.bottom
-            let frame = convert(bounds, to: window)
             let metrics = BottomBarMetrics(
                 safeAreaBottom: safeAreaBottom,
-                barBottomGap: Self.barBottomGap(in: window, rowHeight: rowHeight, safeAreaBottom: safeAreaBottom),
-                touchesLeadingEdge: frame.minX <= 0.5,
-                touchesTrailingEdge: frame.maxX >= window.bounds.width - 0.5
+                barBottomGap: Self.barBottomGap(in: window, rowHeight: rowHeight, safeAreaBottom: safeAreaBottom)
             )
             guard metrics != lastReported else { return }
             lastReported = metrics

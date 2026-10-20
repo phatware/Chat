@@ -258,6 +258,9 @@ struct InputView: View {
             case .empty, .waitingForRecordingPermission:
                 if isAudioAvailable() {
                     inlineRecordButton
+                } else if style == .message {
+                    // No mic to show: the send button stays, greyed out.
+                    inlineSendButton(isEnabled: false)
                 } else {
                     Color.clear.frame(width: 8, height: 1)
                 }
@@ -266,15 +269,15 @@ struct InputView: View {
             case .hasRecording:
                 HStack(spacing: 0) {
                     recordDuration
-                    if style == .message { inlineSendButton }
+                    if style == .message { inlineSendButton() }
                 }
             case .playingRecording, .pausedRecording:
                 HStack(spacing: 0) {
                     recordDurationLeft
-                    if style == .message { inlineSendButton }
+                    if style == .message { inlineSendButton() }
                 }
             case .hasTextOrMedia where style == .message:
-                inlineSendButton
+                inlineSendButton()
             default:
                 Color.clear.frame(width: 8, height: 1)
             }
@@ -550,20 +553,21 @@ struct InputView: View {
     }
 
     /// Send, inside the field at its trailing end.
-    var inlineSendButton: some View {
+    func inlineSendButton(isEnabled: Bool = true) -> some View {
         Button {
             onAction(.send)
         } label: {
             Image(systemName: "arrow.up")
                 .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(isEnabled ? Color.white : Color.secondary)
                 .viewSize(32)
-                .circleBackground(theme.colors.sendButtonBackground)
+                .circleBackground(isEnabled ? theme.colors.sendButtonBackground : Color(.tertiarySystemFill))
                 // 6 pt from the field's edge on every side.
                 .frame(width: Self.messageRowHeight - 4, height: Self.messageRowHeight)
                 .contentShape(Rectangle())
         }
         .accessibilityLabel("Send")
+        .disabled(!isEnabled)
         .padding(.trailing, 2)
     }
 
