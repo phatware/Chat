@@ -51,7 +51,7 @@ struct ChatInputBarPlacement: ViewModifier {
     private static let minimumGap: CGFloat = 8
     /// Side margin. Narrower than Messages' (which matches the bottom gap)
     /// so the field gets the width.
-    private static let sideMargin: CGFloat = 10
+    private static let sideMargin: CGFloat = 12
 
     func body(content: Content) -> some View {
         content
