@@ -15,14 +15,20 @@ class NetworkMonitor: ObservableObject {
     var isConnected = false
 
     init() {
-        networkMonitor.pathUpdateHandler = { path in
-            Task {
-                await MainActor.run {
-                    self.isConnected = path.status == .satisfied
-                    self.objectWillChange.send()
-                }
+        // Weak, and cancelled with this object: a started monitor's handler
+        // holding `self` kept both alive and running after the chat closed,
+        // one more for every chat opened.
+        networkMonitor.pathUpdateHandler = { [weak self] path in
+            Task { @MainActor in
+                guard let self else { return }
+                self.isConnected = path.status == .satisfied
+                self.objectWillChange.send()
             }
         }
         networkMonitor.start(queue: workerQueue)
+    }
+
+    deinit {
+        networkMonitor.cancel()
     }
 }

@@ -454,7 +454,11 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                 viewModel.didUpdateAttachmentStatus = didUpdateAttachmentStatus
             }
 
-            inputViewModel.didSendMessage = { value in
+            // The values, not this view: a closure capturing the view, kept
+            // by the input model this view owns as a @StateObject, kept the
+            // view's state (and the host's send closure) alive after the
+            // chat closed.
+            inputViewModel.didSendMessage = { [didSendMessage, type] value in
                 Task { @MainActor in
                     didSendMessage(value)
                 }
