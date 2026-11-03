@@ -60,39 +60,44 @@ public struct DocumentPicker: UIViewControllerRepresentable {
                 onFilePicked(nil)
                 return
             }
+            // A picked file can be many megabytes: read it off the main
+            // thread, then hand it over on main. (`asCopy` copies stay in
+            // the app's temporary Inbox, so the URL outlives this callback.)
+            let onFilePicked = self.onFilePicked
+            Task { @MainActor in
+                onFilePicked(await Self.readFile(at: url))
+            }
+        }
 
-            // Try to access security-scoped resource (may not be needed for copied files)
-            let needsSecurityScope = url.startAccessingSecurityScopedResource()
-
-            defer {
-                if needsSecurityScope {
-                    url.stopAccessingSecurityScopedResource()
+        private static func readFile(at url: URL) async -> SelectedFile? {
+            await Task.detached(priority: .userInitiated) {
+                // Try to access security-scoped resource (may not be needed for copied files)
+                let needsSecurityScope = url.startAccessingSecurityScopedResource()
+                defer {
+                    if needsSecurityScope {
+                        url.stopAccessingSecurityScopedResource()
+                    }
                 }
-            }
-
-            do {
-                let fileData = try Data(contentsOf: url)
-                let fileName = url.lastPathComponent
-                let mimeType = determineMimeType(from: url)
-
-                let selectedFile = SelectedFile(
-                    url: url,
-                    fileName: fileName,
-                    fileData: fileData,
-                    mimeType: mimeType
-                )
-                onFilePicked(selectedFile)
-            } catch {
-                print("[DocumentPicker] Failed to read file: \(error)")
-                onFilePicked(nil)
-            }
+                do {
+                    let fileData = try Data(contentsOf: url)
+                    return SelectedFile(
+                        url: url,
+                        fileName: url.lastPathComponent,
+                        fileData: fileData,
+                        mimeType: determineMimeType(from: url)
+                    )
+                } catch {
+                    print("[DocumentPicker] Failed to read file: \(error)")
+                    return nil
+                }
+            }.value
         }
 
         public func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
             onFilePicked(nil)
         }
 
-        private func determineMimeType(from url: URL) -> String {
+        private nonisolated static func determineMimeType(from url: URL) -> String {
             let pathExtension = url.pathExtension.lowercased()
 
             // Common MIME types
