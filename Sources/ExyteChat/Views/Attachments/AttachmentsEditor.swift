@@ -250,12 +250,33 @@ struct AttachmentsEditor<InputViewContent: View>: View {
         .padding(.horizontal)
     }
 
-    /// The picker's dismiss button, styled like the host app's header buttons.
+    /// The picker's dismiss button, styled like the host app's header buttons:
+    /// on iOS 26+ the glass of a navigation bar's text buttons (label-colored
+    /// text, bar-button size: 87 × 45 pt, measured against a toolbar Cancel),
+    /// before that the accent capsule.
+    @ViewBuilder
     func cancelButton(action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(localization.cancelButtonText)
+        if #available(iOS 26.0, *) {
+            Button(action: action) {
+                Text(localization.cancelButtonText)
+                    .fontWeight(barButtonWeight)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 5)
+            }
+            .buttonStyle(.glass)
+            .foregroundStyle(.primary)
+        } else {
+            Button(action: action) {
+                Text(localization.cancelButtonText)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.accentColor)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(.accentColor)
+    }
+
+    /// A toolbar text button's weight: medium from iOS 27, regular on 26.
+    private var barButtonWeight: Font.Weight {
+        if #available(iOS 27.0, *) { return .medium }
+        return .regular
     }
 }

@@ -28,8 +28,9 @@ final class PasteInterceptingTextView: UITextView {
         // clusters from another app) costs many ms per call. On every scroll
         // tick this produced a feedback loop with `layoutSubviews` →
         // `invalidateIntrinsicContentSize` → Auto Layout → `intrinsicContentSize`
-        // and stalled the input view. Pin to maxHeight while scrolling; the
-        // measurement runs again only when text changes (see Coordinator).
+        // and stalled the input view. Pin to maxHeight while scrolling;
+        // `PastableTextView.sizeThatFits` (what SwiftUI actually sizes by)
+        // turns scrolling off again when the text shrinks.
         if isScrollEnabled {
             return CGSize(width: UIView.noIntrinsicMetric, height: maxHeight)
         }
@@ -156,6 +157,15 @@ struct PastableTextView: UIViewRepresentable {
         let width = proposal.width ?? uiView.bounds.width
         guard width > 0 else { return nil }
         let size = uiView.sizeThatFits(CGSize(width: width, height: CGFloat.greatestFiniteMagnitude))
+        // SwiftUI sizes the field from here, not from `intrinsicContentSize`,
+        // so scrolling is decided here too (as TerminalTextView does): capped
+        // at `maxHeight` without it, the extra lines sit below the field and
+        // the caret can't be scrolled back into view. Only a real width
+        // decides: an infinite-width probe lays wrapped text out on one line.
+        let scrolls = size.height > maxHeight
+        if width.isFinite, uiView.isScrollEnabled != scrolls {
+            uiView.isScrollEnabled = scrolls
+        }
         return CGSize(width: width, height: min(size.height, maxHeight))
     }
 
@@ -303,13 +313,9 @@ struct PastableTextView: UIViewRepresentable {
             parent.text = value
             placeholderLabel?.isHidden = !value.isEmpty
             onTextChange?(value)
-            // Auto-grow: text changed, so the cached "isScrollEnabled" decision
-            // may no longer hold (e.g. user just deleted enough to shrink below
-            // maxHeight). Reset scroll enablement and let `intrinsicContentSize`
-            // re-measure once. Without this reset, the early-return in
-            // `intrinsicContentSize` would keep us pinned at maxHeight forever
-            // after the first time the text grew past it.
-            textView.isScrollEnabled = false
+            // Auto-grow: ask SwiftUI to re-measure. `sizeThatFits` re-decides
+            // scrolling from the full text height, so it isn't reset here
+            // (turning it off on every keystroke would drop the scroll position).
             textView.invalidateIntrinsicContentSize()
         }
 
